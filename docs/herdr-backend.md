@@ -74,6 +74,8 @@ An older secondmate workspace using `firstmate-<id>` is not migrated automatical
 Recovery and list-live still scan the first workspace matching the home label, because they address panes they already recorded rather than choosing where new work goes.
 
 Existing task operations use recorded endpoint ids and do not move a live task when labels change.
+A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or agent-free.
+A live or unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation.
 The per-home workspace is reused while it has task tabs.
 Closing its last tab can remove the workspace, and the next spawn recreates it.
 

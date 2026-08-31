@@ -123,6 +123,94 @@ SH
   chmod +x "$fb/sleep"
 }
 
+make_herdr_missing_stub() {  # <case-dir>
+  local fb="$1/fakebin"
+  cat > "$fb/herdr" <<'SH'
+#!/usr/bin/env bash
+set -u
+D=$FM_FAKE_DIR
+printf '%s\n' "$*" >> "$D/herdr-calls"
+case "${1:-}" in
+  status)
+    printf '%s\n' '{"client":{"protocol":14,"version":"0.7.3"},"server":{"running":true}}'
+    ;;
+  workspace)
+    case "${2:-}" in
+      list)
+        if [ -n "${FM_FAKE_MISSING_WS:-}" ]; then
+          printf '%s\n' '{"result":{"workspaces":[]}}'
+        elif [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
+          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"other"}]}}'
+        else
+          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate"}]}}'
+        fi
+        ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  tab)
+    case "${2:-}" in
+      list)
+        ws=${4:-w1}
+        if [ "$ws" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
+          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w2:t-dup","label":"fm-rh1","workspace_id":"w2"}]}}'
+        elif [ -e "$D/herdr-created" ]; then
+          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}'
+        else
+          printf '%s\n' '{"result":{"tabs":[]}}'
+        fi
+        ;;
+      create)
+        : > "$D/herdr-created"
+        printf '%s\n' '{"result":{"tab":{"tab_id":"w1:t-new"},"root_pane":{"pane_id":"w1:p-new"}}}'
+        ;;
+      close) : ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  pane)
+    case "${2:-}" in
+      get)
+        pane=${3:-}
+        case "$pane" in
+          *p-old) printf '%s\n' '{"error":{"code":"pane_not_found"}}' ;;
+          *p-dup)
+            printf '%s\n' '{"result":{"pane":{"pane_id":"w2:p-dup","foreground_cwd":"/wrong"}}}'
+            ;;
+          *p-new)
+            printf '%s\n' '{"result":{"pane":{"pane_id":"w1:p-new","foreground_cwd":"'"$FM_FAKE_WT"'"}}}'
+            ;;
+          *) printf '%s\n' '{"error":{"code":"pane_not_found"}}' ;;
+        esac
+        ;;
+      list)
+        if [ "${4:-}" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
+          printf '%s\n' '{"result":{"panes":[{"pane_id":"w2:p-dup","tab_id":"w2:t-dup"}]}}'
+        else
+          printf '%s\n' '{"result":{"panes":[]}}'
+        fi
+        ;;
+      run|send-text|send-keys) : ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  agent)
+    case "${2:-}" in
+      get)
+        case "${3:-}" in
+          *p-dup|*p-new) printf '%s\n' '{"result":{"agent":{"agent_status":"working"}}}' ;;
+          *) printf '%s\n' '{"error":{"code":"agent_not_found"}}' ;;
+        esac
+        ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  *) exit 0 ;;
+esac
+SH
+  chmod +x "$fb/herdr"
+}
+
 # new_case <name> [id] -> echoes a case dir with a live claude ship task.
 new_case() {
   local id=${2:-t1} dir="$TMP_ROOT/$1-$RANDOM"
@@ -166,6 +254,21 @@ EOF
   printf '%s\n' "fm-$id" > "$dir/fake/windows"
   printf '%s' "$wt" > "$dir/fake/cwd"
   TASK_TMPS+=("/tmp/fm-$id")
+}
+
+add_herdr_missing_task() {  # <case-dir> <id>
+  local dir=$1 id=$2 meta="$1/home/state/$2.meta"
+  add_ship_task "$dir" "$id" claude
+  {
+    grep -vE '^(window|backend|herdr_session|herdr_workspace_id|herdr_tab_id|herdr_pane_id)=' "$meta"
+    echo "window=fmtest:w1:p-old"
+    echo "backend=herdr"
+    echo "herdr_session=fmtest"
+    echo "herdr_workspace_id=w1"
+    echo "herdr_tab_id=w1:t-old"
+    echo "herdr_pane_id=w1:p-old"
+  } > "$meta.new"
+  mv "$meta.new" "$meta"
 }
 
 run_control() {  # <case-dir> <args...>
@@ -1389,6 +1492,57 @@ test_promotion_participates_in_the_lifecycle_lock_before_metadata_resolution() {
 
 # --- 6. fm-spawn --relaunch's own refusals -----------------------------------
 
+test_control_relaunch_recreates_a_missing_herdr_endpoint() {
+  local dir out rc
+  dir=$(new_case herdr-missing rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  export FM_FAKE_WT="$dir/wt"
+  out=$(run_control "$dir" rh1 relaunch --note "recover the vanished validation worker"); rc=$?
+  unset FM_FAKE_WT
+  expect_code 0 "$rc" "a missing Herdr pane should be recreated safely"$'\n'"$out"
+  assert_contains "$out" "relaunched rh1 harness=claude" "the recovery outcome should name the task"
+  [ "$(meta_field "$dir" rh1 worktree)" = "$dir/wt" ] \
+    || fail "missing-endpoint recovery must reuse the existing isolated copy"
+  [ "$(meta_field "$dir" rh1 herdr_workspace_id)" = w1 ] \
+    || fail "missing-endpoint recovery must stay in the recorded Herdr workspace"
+  [ "$(meta_field "$dir" rh1 herdr_pane_id)" = w1:p-new ] \
+    || fail "missing-endpoint recovery must publish the replacement pane"
+  assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "pane run w1:p-old /exit" \
+    "missing-endpoint recovery must not send an exit command to a gone pane"
+  pass "fm-control relaunch: a gone Herdr pane is recreated in place without a second worktree"
+}
+
+test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate() {
+  local dir out rc
+  dir=$(new_case herdr-live-duplicate rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  export FM_FAKE_WT="$dir/wt" FM_FAKE_LIVE_DUP=1
+  out=$(run_spawn "$dir" rh1 --relaunch --harness claude); rc=$?
+  unset FM_FAKE_WT FM_FAKE_LIVE_DUP
+  expect_code 1 "$rc" "a live duplicate must refuse missing-endpoint recovery"
+  assert_contains "$out" "another Herdr task tab" "the duplicate refusal should identify the competing task"
+  assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "tab create" \
+    "a live duplicate must be refused before creating a replacement pane"
+  pass "fm-spawn --relaunch: a live Herdr duplicate blocks missing-endpoint recovery"
+}
+
+test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace() {
+  local dir out rc
+  dir=$(new_case herdr-missing-workspace rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  export FM_FAKE_WT="$dir/wt" FM_FAKE_MISSING_WS=1
+  out=$(run_spawn "$dir" rh1 --relaunch --harness claude); rc=$?
+  unset FM_FAKE_WT FM_FAKE_MISSING_WS
+  expect_code 1 "$rc" "a missing recorded workspace must refuse recovery"
+  assert_contains "$out" "recorded Herdr workspace" "the workspace refusal should be actionable"
+  assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "tab create" \
+    "a missing workspace must be refused before creating a replacement pane"
+  pass "fm-spawn --relaunch: a missing Herdr workspace blocks endpoint recreation"
+}
+
 test_spawn_relaunch_refuses_a_live_agent() {
   local dir out rc
   dir=$(new_case live rl15)
@@ -1601,6 +1755,9 @@ test_secondmate_checkpoint_refuses_unreadable_child_state
 test_concurrent_relaunch_is_refused
 test_direct_spawn_relaunch_participates_in_the_lifecycle_lock
 test_promotion_participates_in_the_lifecycle_lock_before_metadata_resolution
+test_control_relaunch_recreates_a_missing_herdr_endpoint
+test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate
+test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace
 test_spawn_relaunch_refuses_a_live_agent
 test_spawn_relaunch_refuses_a_symlinked_task_record_before_inspection
 test_spawn_relaunch_keeps_its_early_meta_lock_continuous

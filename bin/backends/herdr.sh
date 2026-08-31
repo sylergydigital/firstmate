@@ -2071,6 +2071,88 @@ fm_backend_herdr_agent_alive() {  # <target>
   esac
 }
 
+# fm_backend_herdr_relaunch_preflight: validate the identities needed to
+# recreate a missing task pane without adopting another task. The recorded
+# workspace must still exist, every matching task tab outside that workspace is
+# refused, and every matching tab that could contain an agent must classify as
+# agent-free. This is read-only; the caller creates the replacement only after
+# this proof and holds the task lifecycle lock throughout.
+fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-target> <journal>
+  local session=$1 workspace=$2 id=$3 old_target=$4 journal=${5:-}
+  local workspaces wsid tabs tab_id label pane state matches=0
+  local journal_session journal_workspace journal_pane
+  workspaces=$(fm_backend_herdr_cli "$session" workspace list 2>/dev/null) || {
+    echo "error: herdr recovery could not inspect session '$session'; refusing to recreate task $id's missing endpoint" >&2
+    return 1
+  }
+  printf '%s' "$workspaces" | jq -e '(.result.workspaces | type) == "array"' >/dev/null 2>&1 || {
+    echo "error: herdr recovery received an unreadable workspace list for session '$session'; refusing to recreate task $id's missing endpoint" >&2
+    return 1
+  }
+  printf '%s' "$workspaces" | jq -e --arg want "$workspace" \
+    'any(.result.workspaces[]?; .workspace_id == $want)' >/dev/null 2>&1 || {
+    echo "error: recorded Herdr workspace '$workspace' for task $id is missing; refusing to recreate its endpoint" >&2
+    return 1
+  }
+  if [ -n "$journal" ] && { [ -e "$journal" ] || [ -L "$journal" ]; }; then
+    fm_backend_herdr_projection_journal_snapshot "$journal" "$id" || {
+      echo "error: task $id's Herdr recovery journal is unreadable; refusing to recreate its endpoint" >&2
+      return 1
+    }
+    journal_session=$FM_BACKEND_HERDR_JOURNAL_SESSION
+    journal_workspace=$FM_BACKEND_HERDR_JOURNAL_WORKSPACE_ID
+    journal_pane=$FM_BACKEND_HERDR_JOURNAL_PANE_ID
+    [ "$FM_BACKEND_HERDR_JOURNAL_VERSION" = 2 ] \
+      && [ "$journal_session" = "$session" ] \
+      && [ "$journal_workspace" = "$workspace" ] \
+      && [ "$journal_pane" = "${old_target#*:}" ] \
+      || {
+        echo "error: task $id's Herdr recovery journal does not match its recorded missing endpoint; refusing to recreate it" >&2
+        return 1
+      }
+  fi
+  while IFS= read -r wsid; do
+    [ -n "$wsid" ] || continue
+    tabs=$(fm_backend_herdr_cli "$session" tab list --workspace "$wsid" 2>/dev/null) || {
+      echo "error: Herdr task ownership could not be inspected in workspace '$wsid'; refusing to recreate task $id's endpoint" >&2
+      return 1
+    }
+    printf '%s' "$tabs" | jq -e '(.result.tabs | type) == "array"' >/dev/null 2>&1 || {
+      echo "error: Herdr returned an unreadable tab list for workspace '$wsid'; refusing to recreate task $id's endpoint" >&2
+      return 1
+    }
+    while IFS=$'\t' read -r tab_id label; do
+      [ "$label" = "fm-$id" ] || continue
+      matches=$((matches + 1))
+      if [ "$wsid" != "$workspace" ]; then
+        echo "error: another Herdr task tab named fm-$id exists in workspace '$wsid'; refusing to create a second task copy" >&2
+        return 1
+      fi
+      pane=$(fm_backend_herdr_pane_for_tab "$session" "$wsid" "$tab_id") || {
+        echo "error: Herdr task tab fm-$id has no readable pane; refusing to recreate task $id's endpoint" >&2
+        return 1
+      }
+      [ -n "$pane" ] || {
+        echo "error: Herdr task tab fm-$id has no pane identity; refusing to recreate task $id's endpoint" >&2
+        return 1
+      }
+      state=$(fm_backend_herdr_pane_agent_state "$session" "$pane")
+      case "$state" in
+        dead|no-agent) ;;
+        live)
+          echo "error: an existing Herdr task tab named fm-$id still has a registered agent; refusing to recreate its endpoint" >&2
+          return 1
+          ;;
+        *)
+          echo "error: existing Herdr task tab named fm-$id has unreadable agent state; refusing to recreate its endpoint" >&2
+          return 1
+          ;;
+      esac
+    done < <(printf '%s' "$tabs" | jq -r '.result.tabs[]? | [.tab_id, .label] | @tsv' 2>/dev/null)
+  done < <(printf '%s' "$workspaces" | jq -r '.result.workspaces[]?.workspace_id' 2>/dev/null)
+  return 0
+}
+
 # fm_backend_herdr_create_task: create the task's tab (one pane) in
 # <container> ("session:workspace_id"). Herdr does NOT enforce label
 # uniqueness itself (verified: two tabs can share a label), so the duplicate

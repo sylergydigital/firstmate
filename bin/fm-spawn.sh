@@ -39,9 +39,11 @@
 #   model, and effort may change, which is what makes a harness switch one
 #   ordinary relaunch. It refuses unless the recorded endpoint is positively
 #   agent-free on a backend with a recovery-grade agent-state classifier (tmux
-#   or herdr), refuses unless the endpoint's shell is sitting in the recorded
-#   worktree, and clears the previous harness's per-task wiring before arming
-#   the new incarnation.
+#   or herdr), except that a missing Herdr pane may be recreated in its recorded
+#   workspace after the isolated copy and task ownership are re-proven. It
+#   refuses unless the endpoint's shell is sitting in the recorded worktree, and
+#   clears the previous harness's per-task wiring before arming the new
+#   incarnation.
 #   --harness <name> is the explicit per-spawn harness/profile adapter. The old
 #   positional harness arg still works for back-compat.
 #   --model <name> and --effort <low|medium|high|xhigh|max|ultra> are concrete profile
@@ -879,6 +881,11 @@ RELAUNCH_REPLACEMENT_BUSY_GEN=
 RELAUNCH_REPLACEMENT_HARNESS=
 RELAUNCH_REPLACEMENT_STATE=
 RELAUNCH_REPLACEMENT_WT=
+RELAUNCH_ENDPOINT_MISSING=0
+HERDR_RELAUNCH_JOURNAL=
+HERDR_RELAUNCH_JOURNAL_PRIOR=
+HERDR_RELAUNCH_JOURNAL_UPDATED=0
+RELAUNCH_META_PUBLISHED=0
 CONFIG_INHERIT_LOCK=
 CONFIG_INHERIT_LOCK_HELD=0
 
@@ -935,6 +942,13 @@ spawn_abort_cleanup() {
       fi
     fi
   fi
+  if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] \
+     && [ "$RELAUNCH_META_PUBLISHED" != 1 ] \
+     && [ -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
+    cp -p "$HERDR_RELAUNCH_JOURNAL_PRIOR" "$HERDR_RELAUNCH_JOURNAL" 2>/dev/null || \
+      echo "warning: could not restore task $ID's Herdr recovery journal after an aborted relaunch" >&2
+  fi
+  [ -z "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] || rm -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" 2>/dev/null || true
   if [ "$HERDR_PROJECTION_ABORT_CLEANUP" = 1 ] \
      && [ "$HERDR_PRESENTATION_ORDER_LOCK_HELD" != 1 ]; then
     if ! spawn_herdr_presentation_order_lock_acquire "${HERDR_PROJECTION_ABORT_SESSION:-}"; then
@@ -1282,10 +1296,17 @@ if [ "$RELAUNCH" -eq 1 ]; then
     exit 1
   }
   RELAUNCH_STATE=$(fm_backend_agent_state "$BACKEND" "$RELAUNCH_TARGET")
-  [ "$RELAUNCH_STATE" = dead ] || {
+  if [ "$RELAUNCH_STATE" = dead ]; then
+    :
+  elif [ "$BACKEND" = herdr ] && [ "$RELAUNCH_STATE" = missing ]; then
+    # A gone Herdr pane has no endpoint to stop. The guarded recovery below
+    # recreates one in the recorded workspace after proving the task copy and
+    # task ownership are still unambiguous.
+    RELAUNCH_ENDPOINT_MISSING=1
+  else
     echo "error: task $ID's endpoint reads '$RELAUNCH_STATE'; a relaunch requires a positively agent-free endpoint (stop the agent first with bin/fm-control.sh $ID exit)" >&2
     exit 1
-  }
+  fi
   RELAUNCH_PRIOR_HARNESS=$(fm_meta_get "$RELAUNCH_META" harness)
   KIND=$(fm_meta_get "$RELAUNCH_META" kind)
   [ -n "$KIND" ] || KIND=ship
@@ -1311,6 +1332,21 @@ if [ "$RELAUNCH" -eq 1 ]; then
     HERDR_WORKSPACE_ID=$(fm_meta_get "$RELAUNCH_META" herdr_workspace_id)
     HERDR_TAB_ID=$(fm_meta_get "$RELAUNCH_META" herdr_tab_id)
     HERDR_PANE_ID=$(fm_meta_get "$RELAUNCH_META" herdr_pane_id)
+    HERDR_RELAUNCH_OLD_TAB_ID=$HERDR_TAB_ID
+    HERDR_RELAUNCH_OLD_PANE_ID=$HERDR_PANE_ID
+    if [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
+      HERDR_RELAUNCH_JOURNAL=$(fm_backend_herdr_projection_journal_path "$STATE" "$ID")
+      fm_backend_herdr_relaunch_preflight \
+        "$HERDR_SES" "$HERDR_WORKSPACE_ID" "$ID" "$RELAUNCH_TARGET" \
+        "$HERDR_RELAUNCH_JOURNAL" || exit 1
+      if [ -e "$HERDR_RELAUNCH_JOURNAL" ] || [ -L "$HERDR_RELAUNCH_JOURNAL" ]; then
+        HERDR_RELAUNCH_JOURNAL_PRIOR="$STATE/.$ID.herdr-relaunch-journal-prior.${BASHPID:-$$}"
+        cp -p "$HERDR_RELAUNCH_JOURNAL" "$HERDR_RELAUNCH_JOURNAL_PRIOR" || {
+          echo "error: could not preserve task $ID's Herdr recovery journal before recreating its endpoint" >&2
+          exit 1
+        }
+      fi
+    fi
   fi
   # With no explicit harness, a relaunch reuses the harness already recorded
   # for this task. It must NOT fall through to the fresh-spawn config
@@ -2596,7 +2632,37 @@ if [ -e "$STATE/$ID.backlog-close" ] || [ -L "$STATE/$ID.backlog-close" ]; then
 fi
 
 W="fm-$ID"
-if [ "$RELAUNCH" -eq 1 ]; then
+if [ "$RELAUNCH" -eq 1 ] && [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
+  # A missing Herdr pane has no endpoint to adopt. Recreate exactly one task
+  # tab in the recorded workspace, after the locked read-only preflight above
+  # proved that no existing agent can own this task. The recorded worktree is
+  # reused; no new task copy is allocated.
+  WT=$RELAUNCH_WT
+  HERDR_RELAUNCH_IDS=$(fm_backend_herdr_create_task \
+    "$HERDR_SES:$HERDR_WORKSPACE_ID" "$W" "$WT") || exit 1
+  read -r HERDR_TAB_ID HERDR_PANE_ID <<EOF
+$HERDR_RELAUNCH_IDS
+EOF
+  [ -n "$HERDR_TAB_ID" ] && [ -n "$HERDR_PANE_ID" ] || {
+    echo "error: Herdr did not return a replacement tab/pane for task $ID; refusing to continue" >&2
+    exit 1
+  }
+  T="$HERDR_SES:$HERDR_PANE_ID"
+  WT_TARGET="$T"
+  HERDR_PROJECTION_ABORT_CLEANUP=1
+  HERDR_PROJECTION_ABORT_SESSION="$HERDR_SES"
+  HERDR_PROJECTION_ABORT_TASK_PANE="$HERDR_PANE_ID"
+  HERDR_PROJECTION_ABORT_SEEDED_PANE=
+  if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
+    fm_backend_herdr_projection_journal_replace_endpoint \
+      "$HERDR_RELAUNCH_JOURNAL" "$ID" "$HERDR_RELAUNCH_OLD_TAB_ID" "$HERDR_RELAUNCH_OLD_PANE_ID" \
+      "$HERDR_TAB_ID" "$HERDR_PANE_ID" >/dev/null 2>&1 || {
+      echo "error: task $ID's Herdr recovery journal could not be advanced to its replacement endpoint" >&2
+      exit 1
+    }
+    HERDR_RELAUNCH_JOURNAL_UPDATED=1
+  fi
+elif [ "$RELAUNCH" -eq 1 ]; then
   # Adopt the recorded endpoint instead of creating one. This is what keeps a
   # relaunch a REPLACEMENT rather than a second copy of the task: no new
   # terminal, no second worktree, and every uncommitted change left exactly
@@ -3717,6 +3783,7 @@ if [ "$RELAUNCH" -eq 1 ]; then
     echo "error: replacement task record for $ID could not be published ($FM_BACKLOG_TRANSITION_ERROR)" >&2
     exit 1
   fi
+  RELAUNCH_META_PUBLISHED=1
   RELAUNCH_REPLACEMENT_PENDING=0
   SPAWN_META_PUBLISH_STARTED=0
   SPAWN_META_TMP=
@@ -3901,6 +3968,11 @@ if [ "${HERDR_PROJECTED:-0}" -eq 1 ]; then
   spawn_herdr_presentation_order_lock_release
 fi
 spawn_send_key "$T" Enter
+if [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
+  # The replacement pane has now received the launch command. Keep it and let
+  # the published record own it.
+  HERDR_PROJECTION_ABORT_CLEANUP=0
+fi
 if [ "$HARNESS" = kimi ]; then
   if ! kimi_wait_for_ready; then
     kimi_spawn_fail "kimi did not show a verified ready signal before brief delivery"

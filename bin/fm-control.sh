@@ -48,10 +48,12 @@
 #              standing charter is never rewritten.
 #              Records a durable checkpoint and that note, exits the old agent,
 #              then delegates the launch to its single owner,
-#              bin/fm-spawn.sh --relaunch. A failure before publication keeps
-#              the prior durable record in place and reports the concrete
-#              state; it never leaves a half-transitioned task claiming to be
-#              running.
+#              bin/fm-spawn.sh --relaunch. If a Herdr pane has disappeared, the
+#              replacement path recreates one in the recorded workspace only
+#              after proving the isolated copy exists and no agent can own the
+#              task. A failure before publication keeps the prior durable record
+#              in place and reports the concrete state; it never leaves a
+#              half-transitioned task claiming to be running.
 #
 # Teardown and discard are NOT verbs here and never will be. `exit` stops an
 # agent and preserves everything else; removing a worktree, killing an
@@ -152,6 +154,7 @@ CONTROL_LOCK=
 CONTROL_LOCK_HELD=0
 RELAUNCH_ACTIVE=0
 RELAUNCH_PHASE=start
+RELAUNCH_ENDPOINT_MISSING=0
 
 control_cleanup() {
   local status=$?
@@ -456,7 +459,12 @@ do_exit() {
       return 0
       ;;
     alive) ;;
-    missing) die "task $ID's recorded endpoint is gone, so there is no agent to stop; reconcile the task before any further control action" ;;
+    missing)
+      [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ] \
+        || die "task $ID's recorded endpoint is gone, so there is no agent to stop; reconcile the task before any further control action"
+      printf 'already-stopped'
+      return 0
+      ;;
     *) die "task $ID's endpoint reads '$state' rather than a positively classified state; refusing to send a lifecycle command into an unattributed endpoint" ;;
   esac
   # A busy agent is interrupted first before the exit command is submitted.
@@ -816,6 +824,12 @@ do_relaunch() {
   else
     note_line="note=none"
   fi
+  state=$(agent_state)
+  if [ "$BACKEND" = herdr ] && [ "$state" = missing ]; then
+    # Herdr has no endpoint left to stop. fm-spawn performs the locked
+    # ownership and workspace proof before recreating the pane.
+    RELAUNCH_ENDPOINT_MISSING=1
+  fi
   safe_checkpoint
   cp -p "$META" "$META_PRIOR" || die "could not preserve task $ID's durable record before relaunching"
   RELAUNCH_ACTIVE=1
@@ -844,6 +858,15 @@ do_relaunch() {
     die "the replacement agent for $ID could not be launched on $TARGET_HARNESS"
   fi
 
+  # A missing Herdr recovery publishes a new pane identity, so refresh the
+  # control target from the replacement record before checking its liveness.
+  # This also keeps a deliberate backend switch's postcondition on the new
+  # adapter rather than the retired endpoint.
+  fm_backend_validate_task_endpoint "$META" "$ID" || {
+    die "the replacement record for $ID could not be validated after launch"
+  }
+  BACKEND=$FM_BACKEND_VALIDATED_BACKEND
+  T=$FM_BACKEND_VALIDATED_TARGET
   state=$(wait_agent_state "$LAUNCH_WAIT" alive) || {
     die "the replacement agent for $ID did not come up within ${LAUNCH_WAIT}s (endpoint reads '$state')"
   }
