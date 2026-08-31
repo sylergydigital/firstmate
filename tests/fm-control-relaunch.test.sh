@@ -1543,6 +1543,38 @@ test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace() {
   pass "fm-spawn --relaunch: a missing Herdr workspace blocks endpoint recreation"
 }
 
+test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab() {
+  local dir out rc
+  dir=$(new_case herdr-journal-drift rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  {
+    echo "version=2"
+    echo "task_id=rh1"
+    echo "projection_id=p000000000000000000000"
+    echo "home=$dir/home"
+    echo "session=fmtest"
+    echo "workspace_id=w1"
+    echo "tab_id=w1:t-drifted"
+    echo "pane_id=w1:p-old"
+    echo "parent_workspace_id=w0"
+    echo "parent_label=firstmate"
+    echo "workspace_label=└ rh1 · p:p000000000000000000000"
+    echo "task_label=fm-rh1"
+  } > "$dir/home/state/rh1.herdr-presentation"
+  export FM_FAKE_WT="$dir/wt"
+  out=$(run_spawn "$dir" rh1 --relaunch --harness claude); rc=$?
+  unset FM_FAKE_WT
+  expect_code 1 "$rc" "a journal tab that no longer matches the record must refuse recovery"
+  assert_contains "$out" "recovery journal does not match" \
+    "the journal refusal should name the mismatch"
+  assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "tab create" \
+    "a drifted journal tab must be refused before creating a replacement pane"
+  [ "$(sed -n 's/^tab_id=//p' "$dir/home/state/rh1.herdr-presentation")" = w1:t-drifted ] \
+    || fail "a refused recovery must leave the presentation journal untouched"
+  pass "fm-spawn --relaunch: a drifted journal tab blocks endpoint recreation"
+}
+
 test_spawn_relaunch_refuses_a_live_agent() {
   local dir out rc
   dir=$(new_case live rl15)
@@ -1758,6 +1790,7 @@ test_promotion_participates_in_the_lifecycle_lock_before_metadata_resolution
 test_control_relaunch_recreates_a_missing_herdr_endpoint
 test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate
 test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace
+test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab
 test_spawn_relaunch_refuses_a_live_agent
 test_spawn_relaunch_refuses_a_symlinked_task_record_before_inspection
 test_spawn_relaunch_keeps_its_early_meta_lock_continuous

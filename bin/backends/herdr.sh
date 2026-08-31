@@ -2077,8 +2077,8 @@ fm_backend_herdr_agent_alive() {  # <target>
 # refused, and every matching tab that could contain an agent must classify as
 # agent-free. This is read-only; the caller creates the replacement only after
 # this proof and holds the task lifecycle lock throughout.
-fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-target> <journal>
-  local session=$1 workspace=$2 id=$3 old_target=$4 journal=${5:-}
+fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-target> <old-tab> <journal>
+  local session=$1 workspace=$2 id=$3 old_target=$4 old_tab=$5 journal=${6:-}
   local workspaces wsid tabs tab_id label pane state matches=0
   local journal_session journal_workspace journal_pane
   workspaces=$(fm_backend_herdr_cli "$session" workspace list 2>/dev/null) || {
@@ -2106,6 +2106,7 @@ fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-
       && [ "$journal_session" = "$session" ] \
       && [ "$journal_workspace" = "$workspace" ] \
       && [ "$journal_pane" = "${old_target#*:}" ] \
+      && [ "$FM_BACKEND_HERDR_JOURNAL_TAB_ID" = "$old_tab" ] \
       || {
         echo "error: task $id's Herdr recovery journal does not match its recorded missing endpoint; refusing to recreate it" >&2
         return 1

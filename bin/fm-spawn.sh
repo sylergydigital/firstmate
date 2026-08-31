@@ -884,7 +884,6 @@ RELAUNCH_REPLACEMENT_WT=
 RELAUNCH_ENDPOINT_MISSING=0
 HERDR_RELAUNCH_JOURNAL=
 HERDR_RELAUNCH_JOURNAL_PRIOR=
-HERDR_RELAUNCH_JOURNAL_UPDATED=0
 RELAUNCH_META_PUBLISHED=0
 CONFIG_INHERIT_LOCK=
 CONFIG_INHERIT_LOCK_HELD=0
@@ -945,8 +944,12 @@ spawn_abort_cleanup() {
   if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] \
      && [ "$RELAUNCH_META_PUBLISHED" != 1 ] \
      && [ -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
-    cp -p "$HERDR_RELAUNCH_JOURNAL_PRIOR" "$HERDR_RELAUNCH_JOURNAL" 2>/dev/null || \
-      echo "warning: could not restore task $ID's Herdr recovery journal after an aborted relaunch" >&2
+    if mv -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" "$HERDR_RELAUNCH_JOURNAL" 2>/dev/null; then
+      HERDR_RELAUNCH_JOURNAL_PRIOR=
+    else
+      echo "warning: could not restore task $ID's Herdr recovery journal after an aborted relaunch; its pre-recovery copy is kept at $HERDR_RELAUNCH_JOURNAL_PRIOR" >&2
+      HERDR_RELAUNCH_JOURNAL_PRIOR=
+    fi
   fi
   [ -z "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] || rm -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" 2>/dev/null || true
   if [ "$HERDR_PROJECTION_ABORT_CLEANUP" = 1 ] \
@@ -1338,7 +1341,7 @@ if [ "$RELAUNCH" -eq 1 ]; then
       HERDR_RELAUNCH_JOURNAL=$(fm_backend_herdr_projection_journal_path "$STATE" "$ID")
       fm_backend_herdr_relaunch_preflight \
         "$HERDR_SES" "$HERDR_WORKSPACE_ID" "$ID" "$RELAUNCH_TARGET" \
-        "$HERDR_RELAUNCH_JOURNAL" || exit 1
+        "$HERDR_RELAUNCH_OLD_TAB_ID" "$HERDR_RELAUNCH_JOURNAL" || exit 1
       if [ -e "$HERDR_RELAUNCH_JOURNAL" ] || [ -L "$HERDR_RELAUNCH_JOURNAL" ]; then
         HERDR_RELAUNCH_JOURNAL_PRIOR="$STATE/.$ID.herdr-relaunch-journal-prior.${BASHPID:-$$}"
         cp -p "$HERDR_RELAUNCH_JOURNAL" "$HERDR_RELAUNCH_JOURNAL_PRIOR" || {
@@ -2636,8 +2639,9 @@ if [ "$RELAUNCH" -eq 1 ] && [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
   # A missing Herdr pane has no endpoint to adopt. Recreate exactly one task
   # tab in the recorded workspace, after the locked read-only preflight above
   # proved that no existing agent can own this task. The recorded worktree is
-  # reused; no new task copy is allocated.
-  WT=$RELAUNCH_WT
+  # reused; no new task copy is allocated. A secondmate's home already resolved
+  # WT above through the same validation a fresh secondmate spawn uses.
+  [ "$KIND" = secondmate ] || WT=$RELAUNCH_WT
   HERDR_RELAUNCH_IDS=$(fm_backend_herdr_create_task \
     "$HERDR_SES:$HERDR_WORKSPACE_ID" "$W" "$WT") || exit 1
   read -r HERDR_TAB_ID HERDR_PANE_ID <<EOF
@@ -2660,7 +2664,6 @@ EOF
       echo "error: task $ID's Herdr recovery journal could not be advanced to its replacement endpoint" >&2
       exit 1
     }
-    HERDR_RELAUNCH_JOURNAL_UPDATED=1
   fi
 elif [ "$RELAUNCH" -eq 1 ]; then
   # Adopt the recorded endpoint instead of creating one. This is what keeps a
