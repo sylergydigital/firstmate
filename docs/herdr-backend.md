@@ -76,6 +76,7 @@ Recovery and list-live still scan the first workspace matching the home label, b
 Existing task operations use recorded endpoint ids and do not move a live task when labels change.
 A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or agent-free.
 A live or unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation.
+When that task has a presentation journal, the recovery copies it before creating the replacement, advances the journal to the new tab and pane, and restores the pre-recovery copy if the relaunch aborts before its replacement record is published.
 The per-home workspace is reused while it has task tabs.
 Closing its last tab can remove the workspace, and the next spawn recreates it.
 

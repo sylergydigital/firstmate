@@ -1575,6 +1575,43 @@ test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab() {
   pass "fm-spawn --relaunch: a drifted journal tab blocks endpoint recreation"
 }
 
+test_missing_herdr_recovery_restores_the_journal_when_publication_fails() {
+  local dir out rc real_mv meta
+  dir=$(new_case herdr-journal-restore rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  make_mv_failure_stub "$dir"
+  meta="$dir/home/state/rh1.meta"
+  real_mv=$(command -v mv)
+  {
+    echo "version=2"
+    echo "task_id=rh1"
+    echo "projection_id=p000000000000000000000"
+    echo "home=$dir/home"
+    echo "session=fmtest"
+    echo "workspace_id=w1"
+    echo "tab_id=w1:t-old"
+    echo "pane_id=w1:p-old"
+    echo "parent_workspace_id=w0"
+    echo "parent_label=firstmate"
+    echo "workspace_label=└ rh1 · p:p000000000000000000000"
+    echo "task_label=fm-rh1"
+  } > "$dir/home/state/rh1.herdr-presentation"
+  export FM_FAKE_WT="$dir/wt"
+  out=$(FM_REAL_MV="$real_mv" FM_FAKE_META_PUBLISH_MV_FAIL="$meta" \
+    run_control "$dir" rh1 relaunch --note "recover the vanished validation worker"); rc=$?
+  unset FM_FAKE_WT
+  expect_code 1 "$rc" "a failed publication must fail closed"$'\n'"$out"
+  [ "$(sed -n 's/^tab_id=//p' "$dir/home/state/rh1.herdr-presentation")" = w1:t-old ] \
+    && [ "$(sed -n 's/^pane_id=//p' "$dir/home/state/rh1.herdr-presentation")" = w1:p-old ] \
+    || fail "an unpublished recovery must restore the pre-recovery presentation journal"
+  [ "$(meta_field "$dir" rh1 herdr_pane_id)" = w1:p-old ] \
+    || fail "an unpublished recovery must keep the prior durable endpoint"
+  [ -z "$(find "$dir/home/state" -name '*herdr-relaunch-journal-prior*' -print -quit)" ] \
+    || fail "the journal restore must not leave its scratch copy behind"
+  pass "fm-spawn --relaunch: an unpublished missing-Herdr recovery restores the presentation journal"
+}
+
 test_spawn_relaunch_refuses_a_live_agent() {
   local dir out rc
   dir=$(new_case live rl15)
@@ -1791,6 +1828,7 @@ test_control_relaunch_recreates_a_missing_herdr_endpoint
 test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate
 test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace
 test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab
+test_missing_herdr_recovery_restores_the_journal_when_publication_fails
 test_spawn_relaunch_refuses_a_live_agent
 test_spawn_relaunch_refuses_a_symlinked_task_record_before_inspection
 test_spawn_relaunch_keeps_its_early_meta_lock_continuous
