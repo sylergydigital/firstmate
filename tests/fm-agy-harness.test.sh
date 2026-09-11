@@ -106,6 +106,7 @@ make_spawn_case() {
   id="agy-$name-x1"
   fakebin=$(make_spawn_fakebin "$case_dir/fake" agy)
   fm_test_spawn_home "$home"
+  fm_test_spawn_home "$proj"
   fm_test_spawn_brief "$home" "$id"
   fm_git_worktree "$proj" "$wt" "fm/$id"
   printf '%s\n' "$case_dir|$home|$proj|$wt|$fakebin|$id"
@@ -163,25 +164,10 @@ EOF
   pass "fm-spawn: agy omits an unsupported effort flag but keeps it in task metadata"
 }
 
-test_agy_secondmate_is_refused() {
-  local case_dir home proj fakebin out status
-  case_dir="$TMP_ROOT/secondmate-refuse"
-  home="$case_dir/home"
-  proj="$case_dir/project"
-  fakebin=$(make_spawn_fakebin "$case_dir/fake" agy)
-  fm_test_spawn_home "$home"
-  mkdir -p "$home/state"
-  touch "$home/state/.last-watcher-beat"
-  out=$(FM_ROOT_OVERRIDE='' FM_HOME="$home" \
-    FM_STATE_OVERRIDE="$home/state" FM_DATA_OVERRIDE="$home/data" \
-    FM_PROJECTS_OVERRIDE="$home/projects" FM_CONFIG_OVERRIDE="$home/config" \
-    FM_SPAWN_NO_GUARD=1 PATH="$fakebin:$PATH" \
-    "$SPAWN" "agy-secondmate-refuse-x1" --secondmate agy 2>&1) || status=$?
-  status=${status:-0}
-  [ "$status" -ne 0 ] || fail "an agy secondmate spawn should be refused"
-  assert_contains "$out" "agy is a verified crewmate/scout adapter only" \
-    "agy secondmate refusal lacked its concrete reason"
-  pass "fm-spawn: agy cannot be launched as a secondmate"
+test_agy_secondmate_launch_is_supported() {
+  fm_control_harness_supports_kind agy secondmate || fail "agy should support secondmate tasks"
+  [ "$(fm_control_exit_command agy)" = /exit ] || fail "agy exit command should be /exit"
+  pass "fm-control-lib: agy supports persistent secondmates and /exit"
 }
 
 test_agy_control_lib_table() {
@@ -191,9 +177,7 @@ test_agy_control_lib_table() {
   [ "$out" = agy ] || fail "a recorded agy* harness must resolve to agy, got '$out'"
   fm_control_harness_supports_kind agy ship || fail "agy should support ship tasks"
   fm_control_harness_supports_kind agy scout || fail "agy should support scout tasks"
-  if fm_control_harness_supports_kind agy secondmate; then
-    fail "agy should never support secondmate tasks"
-  fi
+  fm_control_harness_supports_kind agy secondmate || fail "agy should support secondmate tasks"
   pass "fm-control-lib: agy's task-kind table matches its verified facts"
 }
 
@@ -204,10 +188,8 @@ test_agy_control_mechanics_stay_unclaimed() {
   if fm_control_interrupt_key agy >/dev/null 2>&1; then
     fail "agy's interrupt key is unverified and must not be claimed"
   fi
-  if fm_control_exit_command agy >/dev/null 2>&1; then
-    fail "agy's exit command is unverified and must not be claimed"
-  fi
-  pass "fm-control-lib: agy's unverified control mechanics correctly refuse rather than guess"
+  [ "$(fm_control_exit_command agy)" = /exit ] || fail "agy exit command was not wired"
+  pass "fm-control-lib: agy's verified exit command is wired"
 }
 
 test_agy_marker_outranks_inherited_claudecode
@@ -215,6 +197,6 @@ test_agy_ancestry_matches_only_the_exact_command_name
 test_agy_ancestry_rejects_unrelated_mentions
 test_agy_launch_command_shape
 test_agy_effort_xhigh_is_recorded_but_omitted
-test_agy_secondmate_is_refused
+test_agy_secondmate_launch_is_supported
 test_agy_control_lib_table
 test_agy_control_mechanics_stay_unclaimed

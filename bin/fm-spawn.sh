@@ -1722,14 +1722,8 @@ fi
 # signal - but whether it actually fires for a firstmate-shaped -i launch is
 # UNVERIFIED: a Stop hook did not fire under -p (print mode), and -i refuses
 # outside a real TTY, so observing it needs a real pane plus a one-time
-# interactive OAuth login inside the isolated $HOME that this task could not
-# perform unattended (docs/verification/agy.md). Refuse until that live
-# observation confirms the hook, rather than guessing it works.
-if [ "$KIND" = secondmate ] && [ "$HARNESS" = agy ]; then
-  echo "error: agy is a verified crewmate/scout adapter only and cannot run a secondmate; its turn-end hook has not been verified to fire for a firstmate launch (config/credential scoping via an isolated \$HOME is verified, but hook-firing is not; see docs/verification/agy.md). Select a harness verified for secondmates." >&2
-  exit 1
-fi
-
+# interactive OAuth login inside the isolated $HOME. The persistent secondmate
+# path below uses that isolated home and installs the Stop hook there.
 case "$HARNESS" in
   pi|pi-signed)
     PI_BIN=$(resolve_pi_executable "$HARNESS") || {
@@ -3657,6 +3651,16 @@ EOF
   esac
 fi
 
+if [ "$KIND" = secondmate ] && [ "$HARNESS" = agy ] && [ "$RAW_LAUNCH" -eq 0 ]; then
+  mkdir -p "$WT/.gemini/antigravity-cli"
+  busy_cmd_prefix="$(shell_quote "$FM_ROOT/bin/fm-busy-event.sh") apply $(shell_quote "$STATE_REAL") $(shell_quote "$ID")"
+  busy_suffix="--gen $(shell_quote "$BUSY_GEN") --source agy-hook"
+  a_stop=$(json_escape "touch $(shell_quote "$TURNEND"); $busy_cmd_prefix idle $busy_suffix --event stop >/dev/null 2>&1 || true")
+  cat > "$WT/.gemini/antigravity-cli/hooks.json" <<EOF
+{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"$a_stop"}]}]}}
+EOF
+fi
+
 # Delivery posture recorded in meta so fm-teardown's safety check and the
 # validate/merge stages can branch on it. A ship task carries the explicit
 # per-task decision validated above; a secondmate's posture is fixed; a scout
@@ -3937,6 +3941,9 @@ if [ "$KIND" = secondmate ]; then
   # Reuse the single frozen decision from the carrier resolution above so the
   # injected carrier and this on/off snapshot are guaranteed to agree.
   LAUNCH="FM_ROOT_OVERRIDE= FM_STATE_OVERRIDE= FM_DATA_OVERRIDE= FM_PROJECTS_OVERRIDE= FM_CONFIG_OVERRIDE= FM_PUBLIC_FOLLOWUP_PRIMARY_HOME=$sq_primary_home FM_HOME=$sq_home FM_TRACE_CONTEXT=$SPAWN_TRACE_EFFECTIVE FM_SUPERVISION_MODEL=$supervision_model $LAUNCH"
+  if [ "$HARNESS" = agy ]; then
+    LAUNCH="HOME=$sq_home $LAUNCH"
+  fi
 fi
 if [ -z "$SPAWN_TRACEPARENT" ] && [ "$RELAUNCH" -eq 1 ]; then
   LAUNCH="unset TRACEPARENT; $LAUNCH"
