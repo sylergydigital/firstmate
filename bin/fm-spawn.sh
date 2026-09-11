@@ -1364,7 +1364,7 @@ if [ "$RELAUNCH" -eq 1 ]; then
   }
 elif [ "$KIND" = secondmate ]; then
   case "${POS[1]:-}" in
-    ''|claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp)
+    ''|claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|agy|omp)
       ARG3=${POS[1]:-}
       ;;
     *' '*)
@@ -1622,6 +1622,31 @@ launch_template() {
     # when a supported effort is requested, since a second --config-override
     # would silently discard the first (confirmed live).
     rovo) printf '%s' 'env -u CLAUDECODE -u PI_CODING_AGENT -u GROK_AGENT -u FM_PI_HARNESS __ROVOBIN__ run --yolo __MODELFLAG____ROVOCONFIGOVERRIDE__' ;;
+    # agy (Antigravity CLI): -i/--prompt-interactive runs an initial prompt
+    # interactively and continues the session, the same auto-submit-at-launch
+    # shape as grok/gemini/cursor, so the encoded brief rides the launch
+    # command. --dangerously-skip-permissions auto-approves every tool
+    # permission request (verified live: a real fm-spawn.sh scout dispatch
+    # answered its encoded brief and worked with no per-tool approval gate).
+    # KNOWN GAP, confirmed live and NOT fixed by this template: a first launch
+    # in an untrusted worktree (firstmate's treehouse paths are never in the
+    # shared ~/.gemini/antigravity-cli/settings.json trustedWorkspaces list)
+    # blocks on agy's own "Do you trust the contents of this project?" dialog,
+    # which --dangerously-skip-permissions does NOT answer. An unattended
+    # crewmate/scout can therefore sit idle at that dialog; see
+    # docs/verification/agy.md for the exact observed prompt and a required
+    # follow-up (answering it from the control plane, without ever writing to
+    # the captain's shared settings.json).
+    # agy does NOT clear an inherited CLAUDECODE (verified live: a tool
+    # subprocess under a claude primary carried both CLAUDECODE=1 and
+    # ANTIGRAVITY_AGENT=1), so foreign primary markers are cleared here as
+    # defense in depth alongside the marker-ordering fix in bin/fm-harness.sh.
+    # -i's value must directly follow it (unverified whether other flags may
+    # sit between -i and its argument), so every other flag is placed BEFORE
+    # -i rather than after.
+    # agy is verified as a CREWMATE/SCOUT adapter only: see the secondmate
+    # refusal below for why it cannot run a secondmate.
+    agy) printf '%s' 'env -u CLAUDECODE -u PI_CODING_AGENT -u GROK_AGENT -u FM_PI_HARNESS -u GEMINI_CLI -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u ATLASSIAN_AGENT_TYPE -u ROVODEV_CLI agy __MODELFLAG____EFFORTFLAG__--dangerously-skip-permissions -i "$(__OPINPUT__ encode launch-brief < __BRIEF__)"' ;;
     *) return 1 ;;
   esac
 }
@@ -1684,6 +1709,24 @@ fi
 # standing one up with no way to arm its watch cycle.
 if [ "$KIND" = secondmate ] && [ "$HARNESS" = rovo ]; then
   echo "error: rovo is a verified crewmate/scout adapter only and cannot run a secondmate; it has no primary supervision protocol. Select a harness verified for secondmates." >&2
+  exit 1
+fi
+
+# agy's gap is narrower than muse/gemini/rovo's, and NOT config scoping: a
+# $HOME override DOES relocate agy's whole config/credential tree (verified
+# live, agy 1.2.0: an isolated $HOME made agy refuse with "authentication
+# required" instead of using the real account, the same proof-by-isolation
+# XDG_CONFIG_HOME/XDG_DATA_HOME gives muse below and GEMINI_CLI_SYSTEM_SETTINGS_PATH
+# gives gemini). agy's own embedded hooks.json documentation names a Stop
+# event firing "when the execution loop terminates" - the needed turn-end
+# signal - but whether it actually fires for a firstmate-shaped -i launch is
+# UNVERIFIED: a Stop hook did not fire under -p (print mode), and -i refuses
+# outside a real TTY, so observing it needs a real pane plus a one-time
+# interactive OAuth login inside the isolated $HOME that this task could not
+# perform unattended (docs/verification/agy.md). Refuse until that live
+# observation confirms the hook, rather than guessing it works.
+if [ "$KIND" = secondmate ] && [ "$HARNESS" = agy ]; then
+  echo "error: agy is a verified crewmate/scout adapter only and cannot run a secondmate; its turn-end hook has not been verified to fire for a firstmate launch (config/credential scoping via an isolated \$HOME is verified, but hook-firing is not; see docs/verification/agy.md). Select a harness verified for secondmates." >&2
   exit 1
 fi
 
@@ -1874,7 +1917,7 @@ model_flag_for_harness() {
   local harness=$1 model=$2
   [ -n "$model" ] && [ "$model" != default ] || return 0
   case "$harness" in
-    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp)
+    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|agy|omp)
       printf -- '--model %s ' "$(shell_quote "$model")"
       ;;
   esac
@@ -1942,6 +1985,17 @@ effort_flag_for_harness() {
     # --config-override, but that flag is single-value (see
     # rovo_config_override_flag below) so it is built there, merged with the
     # mandatory allowedExternalPaths grant, rather than here.
+    agy)
+      # agy 1.2.0 --help lists --effort as low|medium|high with no xhigh/max;
+      # omit those rather than passing an unsupported value. Note some agy
+      # model ids already bake in an effort tier (e.g. gemini-3.1-pro-high),
+      # so a captain-chosen model and a separately requested --effort can
+      # both apply; firstmate passes through whatever was configured on each
+      # axis rather than reconciling them.
+      case "$effort" in
+        low|medium|high) printf -- '--effort %s ' "$(shell_quote "$effort")" ;;
+      esac
+      ;;
     # opencode's interactive `opencode --prompt` launch has a verified --model
     # flag but no verified effort flag. Its `opencode run --variant` flag belongs
     # to a different, non-interactive launch mode, so fm-spawn does not pass it.

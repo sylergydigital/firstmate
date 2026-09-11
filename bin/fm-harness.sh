@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Detect the agent harness this process tree runs on.
-# Usage: fm-harness.sh                  print own harness: claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp|unknown
+# Usage: fm-harness.sh                  print own harness: claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|agy|omp|unknown
 #        fm-harness.sh crew             print the effective CREWMATE harness
 #                                        (config/crew-harness; "default" resolves to own)
 #        fm-harness.sh secondmate       print the harness the PRIMARY uses to launch
@@ -79,6 +79,15 @@ detect_own() {
   # additionally clears foreign markers at rovo's launch boundary as defense in depth.
   [ "${ATLASSIAN_AGENT_TYPE:-}" = "rovo" ] && { echo rovo; return; }
   [ "${ROVODEV_CLI:-}" = "1" ] && { echo rovo; return; }
+  # agy (Antigravity CLI) sets ANTIGRAVITY_AGENT=1 for its own tool subprocesses
+  # (verified live, agy 1.2.0: `agy -p 'run: env' --dangerously-skip-permissions`
+  # printed ANTIGRAVITY_AGENT=1 alongside ANTIGRAVITY_LS_VERSION=cli-1.2.0 in the
+  # tool subprocess environment). It does NOT clear an inherited CLAUDECODE - the
+  # same process carried CLAUDECODE=1 from the launching Claude primary - so this
+  # must be tested BEFORE the CLAUDECODE line below, the same ordering hazard
+  # cursor/gemini/rovo document above. bin/fm-spawn.sh additionally clears
+  # foreign markers at agy's launch boundary as defense in depth.
+  [ "${ANTIGRAVITY_AGENT:-}" = "1" ] && { echo agy; return; }
   # omp (Oh My Pi) publishes NO harness-identity marker of its own: verified on
   # omp 18.1.11 that PI_CODING_AGENT is absent from the binary and that the
   # default profile sets neither PI_CODING_AGENT_DIR nor OMP_PROFILE in the
@@ -150,6 +159,11 @@ detect_own() {
       *grok*) echo grok; return ;;
       kimi) echo kimi; return ;;
       rovo) echo rovo; return ;;
+      # agy is a stripped, statically-named ELF binary (verified, agy 1.2.0:
+      # `file ~/.local/bin/agy` reports a dynamically-linked executable with no
+      # wrapper exec, so the live process name is exactly `agy`). Anchored,
+      # never *agy*, so unrelated commands are not misread as this harness.
+      agy) echo agy; return ;;
       # muse's installed launcher ~/.local/bin/muse execs ~/.local/bin/muse-bin-<version>
       # (verified in the published launcher, muse 0.1.0-R708.1), so the live process
       # name carries the version and CHANGES on every auto-update. Match the stable

@@ -63,7 +63,7 @@ fm_control_verb_allowed() {  # <verb>
 # than guessed at, exactly as a spawn on it would be.
 fm_control_harness_supported() {  # <harness>
   case "${1-}" in
-    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|omp) return 0 ;;
+    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|gemini|muse|rovo|agy|omp) return 0 ;;
   esac
   return 1
 }
@@ -90,12 +90,13 @@ fm_control_harness_family() {  # <recorded-harness>
     gemini*) printf 'gemini' ;;
     muse*) printf 'muse' ;;
     rovo*) printf 'rovo' ;;
+    agy*) printf 'agy' ;;
     *) return 1 ;;
   esac
 }
 
-# Which task kinds an adapter is verified to run. muse, gemini, and rovo are
-# crewmate/scout adapters only: none has a primary supervision protocol,
+# Which task kinds an adapter is verified to run. muse, gemini, rovo, and agy
+# are crewmate/scout adapters only: none has a primary supervision protocol,
 # and bin/fm-spawn.sh refuses a --secondmate launch on any of them. The control
 # plane asks this BEFORE it stops anything, so an incompatible relaunch target is
 # refused while the current agent is still running rather than after it has
@@ -104,7 +105,7 @@ fm_control_harness_supports_kind() {  # <harness> <kind>
   local harness=${1-} kind=${2-}
   fm_control_harness_supported "$harness" || return 1
   case "$harness" in
-    muse|gemini|rovo) [ "$kind" != secondmate ] || return 1 ;;
+    muse|gemini|rovo|agy) [ "$kind" != secondmate ] || return 1 ;;
   esac
   return 0
 }
@@ -117,6 +118,18 @@ fm_control_harness_supports_kind() {  # <harness> <kind>
 # 202609.1.2). omp (Oh My Pi) shares Pi's single Escape, empty composer
 # afterwards, and /quit exit (verified omp 18.1.2 in a PTY, re-verified 18.1.11
 # through Herdr).
+# agy is deliberately absent from this table and the three that follow it
+# (repeat count, clear key, exit command): a live compatibility launch (agy
+# 1.2.0, fm-spawn.sh scout dispatch in an isolated throwaway home) DID confirm
+# its composer renders and that /exit works (docs/verification/agy.md), but
+# that single manual observation is not the two-test proof
+# firstmate-coding-guidelines requires for a harness-dependent control-plane
+# check, and the interrupt key was never attempted. Every control-plane verb
+# therefore still refuses cleanly for agy via each table's default
+# `*) return 1` arm rather than wiring in an undertested guess. Add
+# fm_busy_agy_tail_busy-style classification and fm_control_exit_command's
+# `/exit` here only once backed by a portable regression test and a live
+# guard, and confirm the interrupt key live before adding it at all.
 fm_control_interrupt_key() {  # <harness>
   case "${1-}" in
     claude|codex|opencode|pi|pi-signed|omp|kimi|cursor|gemini|muse|rovo) printf 'Escape' ;;
