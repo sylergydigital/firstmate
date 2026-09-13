@@ -190,6 +190,10 @@ case "${1:-}" in
           printf '%s\n' '{"result":{"panes":[]}}'
         fi
         ;;
+      process-info)
+        pane=${4:-}
+        printf '%s\n' '{"result":{"type":"pane_process_info","process_info":{"pane_id":"'"$pane"'","shell_pid":4242,"foreground_process_group_id":4243,"foreground_processes":[{"pid":4243,"name":"claude","argv0":"claude","argv":["claude"],"cmdline":"claude"}]}}}'
+        ;;
       run|send-text|send-keys) : ;;
       *) exit 1 ;;
     esac
