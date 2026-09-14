@@ -101,7 +101,7 @@ Switching harness is therefore one ordinary relaunch rather than a separate mech
   zellij, orca, and cmux are refused rather than reported as successful blind.
 - An ambiguous or unreadable endpoint state refuses.
   Only a positively classified state acts.
-  The sole missing-endpoint exception is a Herdr pane that is positively classified as gone, with the recorded workspace present and no live or ambiguous task owner found.
+  The sole missing-endpoint exception is a Herdr pane that is positively classified as gone, with the recorded workspace present and no live, stale-agent, or otherwise unreadable task owner found.
 - `fm-spawn --relaunch` independently refuses unless the recorded endpoint is positively agent-free and its shell is sitting in the recorded worktree, or the guarded Herdr missing-pane route has re-proven the existing isolated copy and task ownership before creating one replacement tab.
   For a drifted Herdr shell, it sends one `cd` to the recorded path and refuses unless a subsequent path read confirms the move; tmux refuses immediately when its shell is not in the recorded worktree.
 

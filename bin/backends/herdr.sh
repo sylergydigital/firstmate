@@ -2367,8 +2367,11 @@ fm_backend_herdr_agent_alive() {  # <target>
 # recreate a missing task pane without adopting another task. The recorded
 # workspace must still exist, every matching task tab outside that workspace is
 # refused, and every matching tab that could contain an agent must classify as
-# agent-free. This is read-only; the caller creates the replacement only after
-# this proof and holds the task lifecycle lock throughout.
+# dead or no-agent. A stale-agent tab - a lingering registration over a
+# shell-only pane - refuses with the other non-husk states even though the
+# recovery-grade relaunch read maps a recorded stale-agent endpoint to dead.
+# This is read-only; the caller creates the replacement only after this proof
+# and holds the task lifecycle lock throughout.
 fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-target> <old-tab> <journal>
   local session=$1 workspace=$2 id=$3 old_target=$4 old_tab=$5 journal=${6:-}
   local workspaces wsid tabs tab_id label pane state matches=0

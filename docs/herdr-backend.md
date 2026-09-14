@@ -74,8 +74,8 @@ An older secondmate workspace using `firstmate-<id>` is not migrated automatical
 Recovery and list-live still scan the first workspace matching the home label, because they address panes they already recorded rather than choosing where new work goes.
 
 Existing task operations use recorded endpoint ids and do not move a live task when labels change.
-A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or agent-free.
-A live or unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation.
+A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or classifies as `dead` or `no-agent`.
+A live, `stale-agent`, or otherwise unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation; the recovery preflight uses the strict pane classifier even though the recovery-grade relaunch read maps a `stale-agent` recorded endpoint to `dead`.
 When that task has a presentation journal, the recovery copies it before creating the replacement, advances the journal to the new tab and pane, and restores the pre-recovery copy if the relaunch aborts before its replacement record is published.
 The per-home workspace is reused while it has task tabs.
 Closing its last tab can remove the workspace, and the next spawn recreates it.
@@ -297,7 +297,7 @@ An unreadable or unparseable process view reads `unknown`, which refuses lifecyc
 
 The generic Herdr agent-liveness probe reuses that pane classifier, then applies one recovery-only exception.
 A structurally gone pane or a pane read from a session positively reported as having no running server becomes `missing`, a restored agent-less shell and a stale registration over a shell-only pane both become `dead`, a registered agent with a live process becomes `alive`, and every other unexpected read becomes `unreadable`.
-Neither the stopped-server exception nor the stale-registration verdict widens husk detection or any close authority; those paths still refuse an unreadable pane, and a `stale-agent` pane is reused by recovery, never closed as a husk, because the shell it holds may be a nested worktree shell.
+Neither the stopped-server exception nor the stale-registration verdict widens husk detection or any close authority; those paths still refuse an unreadable pane, and a recorded `stale-agent` endpoint is reused by a relaunch, never closed as a husk, because the shell it holds may be a nested worktree shell.
 Native registration still identifies Pi by name where tmux would see a generic interpreter; the process-level proof only decides whether that registration is backed by a running process.
 `tests/fm-backend-herdr-agent-exit-shell-e2e.test.sh` pins the live-Pi versus leftover-shell distinction; [`verification/runtime-backends.md`](verification/runtime-backends.md#agent-lifecycle-control) owns the versioned evidence.
 
