@@ -1,0 +1,10 @@
+PANE_CODEX=/run/user/1835035472/fnm_multishells/3995911_1789356455832/bin/codex
+STATE_AFTER_CLOSE=missing
+FM_CONTROL_RC=0
+FM_CONTROL_OUT=warning: /tmp/fm-cased.NLWvdz/home/data/rhlive/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+relaunched rhlive harness=codex from=codex model=default effort=default backend=herdr endpoint=fm-lab-cased-3995575:w1:p4 worktree=/tmp/fm-cased.NLWvdz/wt
+NEW_WINDOW=fm-lab-cased-3995575:w1:p4 NEW_WS=w1 NEW_PANE=w1:p4
+NEW_STATE=alive
+NEW_FOREGROUND=["node","codex"]
+NEW_CWD=/tmp/fm-cased.NLWvdz/wt
+OLD_PANE_EXISTS=no

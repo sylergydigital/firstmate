@@ -1,0 +1,21 @@
+A: rc=0 new_window=fm-lab-reca-3875540:w1:p4 new_ws=w1 new_pane=w1:p4 tabs_before=1
+A: new_pane_cwd=/tmp/fm-live-rec.DYiPpO/wt recorded_wt=/tmp/fm-live-rec.DYiPpO/wt worktrees=2
+A: new_pane_foreground_processes=node,codex
+A: new_pane_recent_tail: Note: You’re in a subdirectory of a Git project. Trusting will apply to the repository root:|  /tmp/fm-live-rec.DYiPpO/proj||  Do you trust the contents of this directory? Working with untrusted contents comes with higher risk of prompt|  injection. Trusting the directory allows project-local config, hooks, and exec policies to load.||› 1. Yes, continue|  2. No, quit||  Press enter to continue
+ok - A: replacement stays in the recorded workspace (w1)
+ok - A: durable record republished a replacement pane (w1:p4)
+ok - A: replacement shell sits in the recorded copy
+ok - A: no second worktree allocated (worktree count 2)
+ok - A: the replacement harness was launched with the task's launch brief
+ok - A: a live codex process is running in the replacement pane
+ok - A: the gone pane id stays gone
+B: duplicate pane=w1:p4 classifier=stale-agent
+B: rc=1 out=error: existing Herdr task tab named fm-rhlive has unreadable agent state; refusing to recreate its endpoint
+B: tabs_before=2 tabs_after=2 meta_pane=w1:p2
+ok - B: recovery refuses when a matching tab reads stale-agent
+ok - B: refusal names unreadable agent state
+ok - B: no replacement tab created (2)
+C: rc=1 out=error: another Herdr task tab named fm-rhlive exists in workspace 'w2'; refusing to create a second task copy
+ok - C: recovery refuses a matching tab outside the recorded workspace
+ok - C: refusal names the competing task
+SUMMARY pass=12 fail=0
