@@ -934,6 +934,7 @@ SPAWN_TASK_SET_LOCK_HELD=0
 SPAWN_TREEHOUSE_PROJECT_LOCK=
 SPAWN_TREEHOUSE_PROJECT_LOCK_HELD=0
 SPAWN_TREEHOUSE_FENCED=
+SPAWN_TREEHOUSE_FENCE_STARTED=0
 SPAWN_SLOT_CLAIMED=0
 RELAUNCH_REPLACEMENT_PENDING=0
 RELAUNCH_REPLACEMENT_BUSY_GEN=
@@ -978,8 +979,11 @@ parse_orca_worktree_result() {
 # once the pane holds its own slot, or from the abort trap.
 spawn_release_treehouse_fence() {
   local fenced=$SPAWN_TREEHOUSE_FENCED
-  [ -n "$fenced" ] || return 0
+  [ "$SPAWN_TREEHOUSE_FENCE_STARTED" = 1 ] || return 0
+  SPAWN_TREEHOUSE_FENCE_STARTED=0
   SPAWN_TREEHOUSE_FENCED=
+  fenced=$(printf '%s\n%s\n' "$fenced" "$(fm_treehouse_fence_held "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER")" | sed '/^$/d' | sort -u)
+  [ -n "$fenced" ] || return 0
   # shellcheck disable=SC2086 # fenced paths are newline-separated pool paths
   (IFS=$'\n'; set -f; fm_treehouse_fence_release "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER" $fenced)
 }
@@ -3367,6 +3371,7 @@ elif [ "$KIND" != secondmate ] && [ "$BACKEND" != orca ]; then
   # worktree first; fence those slots so the get below lands in one of this
   # clone's own (fm_treehouse_fence_foreign_slots owns why). The
   # foreign-worktree refusals below stay as the backstop.
+  SPAWN_TREEHOUSE_FENCE_STARTED=1
   fm_treehouse_fence_foreign_slots "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER" SPAWN_TREEHOUSE_FENCED
   spawn_send_text_line "$WT_TARGET" 'treehouse get'
 

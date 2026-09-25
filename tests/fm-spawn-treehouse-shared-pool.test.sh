@@ -35,9 +35,12 @@ case "${1:-}" in
     sep='['
     while IFS= read -r slot; do
       n=$(basename "$(dirname "$slot")")
-      st=available
-      [ ! -e "$db/owner.$n" ] || st=in-use
-      printf '%s{"name":"%s","path":"%s","status":"%s","lease_id":"","lease_holder":"","leased_at":null,"processes":[]}' "$sep" "$n" "$slot" "$st"
+      st=available holder=
+      if [ -e "$db/owner.$n" ]; then
+        st=in-use
+        holder=$(sed -n 's/^lease://p' "$db/owner.$n")
+      fi
+      printf '%s{"name":"%s","path":"%s","status":"%s","lease_id":"","lease_holder":"%s","leased_at":null,"processes":[]}' "$sep" "$n" "$slot" "$st" "$holder"
       sep=','
     done < "$db/slots"
     printf ']\n'
@@ -199,7 +202,7 @@ test_interrupted_fence_returns_leases_taken() {
   [ "$status" != 0 ] || fail "a spawn terminated mid-fence should not report success"$'\n'"$out"
   [ ! -e "$DB_DIR/pane" ] || [ "$(cat "$DB_DIR/pane")" = "$PROJECT_DIR" ] \
     || fail "a spawn terminated mid-fence still ran the interactive get"
-  for n in 1 2; do
+  for n in 1 2 3; do
     leftover=$(cat "$DB_DIR/owner.$n" 2>/dev/null || true)
     [ -z "$leftover" ] || fail "foreign slot $n stayed fenced after the spawn was terminated: $leftover"$'\n'"$out"
   done

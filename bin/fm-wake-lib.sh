@@ -1293,6 +1293,14 @@ fm_treehouse_fence_foreign_slots() {  # <project-dir> <holder> <fenced-var>
   done
 }
 
+# Print each pool slot currently leased under <holder>, one per line, so a
+# lease taken but not yet recorded when a spawn aborted is still returned.
+fm_treehouse_fence_held() {  # <project-dir> <holder>
+  local project=$1 holder=$2
+  (cd -- "$project" && treehouse status --json 2>/dev/null </dev/null) \
+    | jq -r --arg holder "$holder" '.[]? | select(.lease_holder == $holder) | .path' 2>/dev/null || true
+}
+
 # Return slots fenced by fm_treehouse_fence_foreign_slots. The return is
 # conditional on the fence's own holder label, so a slot whose lease has since
 # changed hands is never released.
