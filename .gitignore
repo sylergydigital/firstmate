@@ -13,3 +13,5 @@ __pycache__/
 config/
 
 .tools/
+.stow-notes.md
+.stow-archive.md
