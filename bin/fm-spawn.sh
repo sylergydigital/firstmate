@@ -3367,7 +3367,7 @@ elif [ "$KIND" != secondmate ] && [ "$BACKEND" != orca ]; then
   # worktree first; fence those slots so the get below lands in one of this
   # clone's own (fm_treehouse_fence_foreign_slots owns why). The
   # foreign-worktree refusals below stay as the backstop.
-  SPAWN_TREEHOUSE_FENCED=$(fm_treehouse_fence_foreign_slots "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER")
+  fm_treehouse_fence_foreign_slots "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER" SPAWN_TREEHOUSE_FENCED
   spawn_send_text_line "$WT_TARGET" 'treehouse get'
 
   # Wait for the treehouse subshell: the pane's cwd moves from the project to the worktree.

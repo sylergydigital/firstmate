@@ -47,6 +47,19 @@ case "${1:-}" in
     n=$(basename "$(dirname "$slot")")
     if [ "${2:-}" = --lease ]; then
       printf 'lease:%s\n' "${4:-}" > "$db/owner.$n"
+      if [ -n "${FM_FAKE_TH_TERM_AT_LEASE:-}" ] \
+         && [ "$(grep -c -- '^get --lease' "$db/calls.log")" = "$FM_FAKE_TH_TERM_AT_LEASE" ]; then
+        pid=$PPID spawn_pid=
+        while [ "$pid" -gt 1 ]; do
+          if grep -q 'bin/fm-spawn\.sh' "/proc/$pid/cmdline" 2>/dev/null; then
+            spawn_pid=$pid
+          elif [ -n "$spawn_pid" ]; then
+            break
+          fi
+          pid=$(awk '{print $4}' "/proc/$pid/stat")
+        done
+        kill -TERM "$spawn_pid"
+      fi
       printf '%s\n' "$slot"
     else
       printf 'pane\n' > "$db/owner.$n"
@@ -175,7 +188,26 @@ test_unshared_pool_takes_no_lease() {
   pass "a pool used by one clone is not fenced"
 }
 
+test_interrupted_fence_returns_leases_taken() {
+  local rec id out status leftover
+  id='shared-pool-interrupted'
+  rec=$(make_case interrupted "$id" 3 4)
+  read_case_record "$rec"
+
+  out=$(FM_FAKE_TH_TERM_AT_LEASE=3 run_spawn "$id" --scout)
+  status=$?
+  [ "$status" != 0 ] || fail "a spawn terminated mid-fence should not report success"$'\n'"$out"
+  [ ! -e "$DB_DIR/pane" ] || [ "$(cat "$DB_DIR/pane")" = "$PROJECT_DIR" ] \
+    || fail "a spawn terminated mid-fence still ran the interactive get"
+  for n in 1 2; do
+    leftover=$(cat "$DB_DIR/owner.$n" 2>/dev/null || true)
+    [ -z "$leftover" ] || fail "foreign slot $n stayed fenced after the spawn was terminated: $leftover"$'\n'"$out"
+  done
+  pass "a spawn terminated mid-fence returns the foreign slots it already leased"
+}
+
 test_spawn_skips_foreign_lowest_slots
 test_unshared_pool_takes_no_lease
+test_interrupted_fence_returns_leases_taken
 
 echo "# all fm-spawn-treehouse-shared-pool tests passed"

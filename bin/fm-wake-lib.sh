@@ -1265,9 +1265,11 @@ fm_treehouse_pool_slot() {  # <project-dir> <worktree>
 # available slot that is not this project's own worktree is fenced, so a pool
 # used by one clone pays nothing. Probing stops at this clone's own slot, which
 # is returned straight away for the interactive get to take, or at the first
-# failed or empty lease. Prints each fenced path on its own line.
-fm_treehouse_fence_foreign_slots() {  # <project-dir> <holder>
-  local project=$1 holder=$2 listing entry path foreign=0 limit n=0
+# failed or empty lease. Appends each fenced path, as soon as its lease is
+# held, on its own line to the caller's variable named by <fenced-var>, so an
+# abort trap in the caller's shell sees every lease taken so far.
+fm_treehouse_fence_foreign_slots() {  # <project-dir> <holder> <fenced-var>
+  local project=$1 holder=$2 fenced_var=$3 listing entry path foreign=0 limit n=0
   listing=$(cd -- "$project" && treehouse status --json 2>/dev/null </dev/null) || return 0
   while IFS= read -r entry; do
     path=${entry#\"path\":\"}
@@ -1287,7 +1289,7 @@ fm_treehouse_fence_foreign_slots() {  # <project-dir> <holder>
       fm_treehouse_fence_release "$project" "$holder" "$path"
       return 0
     fi
-    printf '%s\n' "$path"
+    printf -v "$fenced_var" '%s%s\n' "${!fenced_var}" "$path"
   done
 }
 
