@@ -1,0 +1,78 @@
+== Pool at start (slots 1,2 = secondmate clone; 3 = main clone)
+  1: available holder=
+  2: available holder=
+  3: available holder=
+== CONTROL (pre-fix behaviour): interactive 'treehouse get' from main clone, no fence
+  pane landed in /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo (repo of /tmp/th-live.TGYe/secondmate-home/repo/.git)
+  -> FOREIGN worktree (the reported bug)
+  pool after:
+  1: available holder=
+  2: available holder=
+  3: available holder=
+== FIX: fence foreign slots, then interactive get from main clone (as fm-spawn does)
+  fenced:
+    /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo
+    /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/2/repo
+  pool while fenced:
+  1: leased holder=firstmate-spawn-fence:live-main
+  2: leased holder=firstmate-spawn-fence:live-main
+  3: available holder=
+  pane landed in /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/3/repo (repo of /tmp/th-live.TGYe/main-home/repo/.git)
+  -> OWN worktree
+  fence released
+  pool after release (main pane still holds its slot):
+  1: available holder=
+  2: available holder=
+  3: in-use holder=
+== CONCURRENT: secondmate clone spawns while main pane holds slot 3
+  fenced by secondmate: []
+  secondmate pane landed in /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo (repo of /tmp/th-live.TGYe/secondmate-home/repo/.git)
+  -> OWN worktree
+  pool:
+  1: in-use holder=
+  2: available holder=
+  3: in-use holder=
+== ADVERSARIAL: foreign slot leased under the fence holder but never recorded (in-flight lease at abort)
+  unrecorded lease: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo
+  1: leased holder=firstmate-spawn-fence:live-abort
+  2: available holder=
+  3: available holder=
+  sweep by holder label finds: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo
+  returned
+  1: available holder=
+  2: available holder=
+  3: available holder=
+== ADVERSARIAL: slot leased by someone else is not released by the fence holder
+warning: could not return fenced Treehouse slot /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo (lease holder firstmate-spawn-fence:live-abort); release it with: treehouse return --if-lease-holder 'firstmate-spawn-fence:live-abort' '/tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo'
+  rc=1
+  1: leased holder=other-task
+  2: available holder=
+  3: available holder=
+== Single-clone pool: no lease is taken
+== EDGE: main clone's own slot busy, only foreign slots free -> fence all, get creates a new own worktree
+  own slot held by another task: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo
+  fenced: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/2/repo
+  new get -> /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/3/repo (/tmp/th-live.TGYe/main-home/repo/.git)
+  -> OWN worktree
+  1: leased holder=busy
+  2: available holder=
+  3: leased holder=pane
+== Single-clone pool: fence takes no lease
+  fenced: []
+  1: available holder=
+== EDGE (retry): main clone's only own slot (3) busy, only foreign slots 1,2 free
+  own slot held by another task: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/3/repo
+  1: available holder=
+  2: available holder=
+  3: leased holder=busy
+  fenced: /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/1/repo /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/2/repo
+  1: leased holder=fence:edge
+  2: leased holder=fence:edge
+  3: leased holder=busy
+  4: available holder=
+  pane get -> /tmp/th-live.TGYe/home/.treehouse/repo-579b1a/4/repo (/tmp/th-live.TGYe/main-home/repo/.git)
+  after release:
+  1: available holder=
+  2: available holder=
+  3: leased holder=busy
+  4: leased holder=pane
