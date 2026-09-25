@@ -135,11 +135,11 @@ make_case() {
     printf '%s\n' "$pool/$n/repo" >> "$db/slots"
   done
   printf '%s\n' "$project" > "$db/pane"
-  printf '%s\n' "$case_dir|$home|$project|$pool|$db|$fakebin"
+  printf '%s\n' "$home|$project|$pool|$db|$fakebin"
 }
 
 read_case_record() {
-  IFS='|' read -r CASE_DIR HOME_DIR PROJECT_DIR POOL_DIR DB_DIR FAKEBIN_DIR <<EOF
+  IFS='|' read -r HOME_DIR PROJECT_DIR POOL_DIR DB_DIR FAKEBIN_DIR <<EOF
 $1
 EOF
 }
