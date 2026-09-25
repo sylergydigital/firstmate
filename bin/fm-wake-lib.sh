@@ -1249,6 +1249,64 @@ fm_treehouse_pool_slot() {  # <project-dir> <worktree>
   [ "$project_common" = "$slot_common" ]
 }
 
+# Foreign-slot fence: keep `treehouse get` from handing this clone another
+# clone's worktree.
+#
+# Treehouse names a pool by the repository's directory name plus a hash of its
+# origin URL, so two local clones of one origin (a root home's and a secondmate
+# home's) share a single pool, and its acquire hands out the first free slot
+# whichever clone's worktree it is. Treehouse offers no per-clone selection, so
+# before the interactive get the spawn durably leases every free foreign slot
+# ahead of this clone's own, under a holder label naming the task, and returns
+# them once its own slot is held. The fence runs under the Treehouse project
+# lock, which every clone of the origin shares, so no other spawn sees it.
+#
+# The cheap gate reads `treehouse status --json`: only a pool listing an
+# available slot that is not this project's own worktree is fenced, so a pool
+# used by one clone pays nothing. Probing stops at this clone's own slot, which
+# is returned straight away for the interactive get to take, or at the first
+# failed or empty lease. Prints each fenced path on its own line.
+fm_treehouse_fence_foreign_slots() {  # <project-dir> <holder>
+  local project=$1 holder=$2 listing entry path foreign=0 limit n=0
+  listing=$(cd -- "$project" && treehouse status --json 2>/dev/null </dev/null) || return 0
+  while IFS= read -r entry; do
+    path=${entry#\"path\":\"}
+    path=${path%%\"*}
+    [ -n "$path" ] || continue
+    n=$((n + 1))
+    fm_treehouse_pool_slot "$project" "$path" || foreign=1
+  done < <(printf '%s' "$listing" | grep -o '"path":"[^"]*","status":"available"' || true)
+  [ "$foreign" = 1 ] || return 0
+  limit=$n
+  n=0
+  while [ "$n" -le "$limit" ]; do
+    n=$((n + 1))
+    path=$(cd -- "$project" && treehouse get --lease --lease-holder "$holder" 2>/dev/null </dev/null) || return 0
+    [ -n "$path" ] && [ -d "$path" ] || return 0
+    if fm_treehouse_pool_slot "$project" "$path"; then
+      fm_treehouse_fence_release "$project" "$holder" "$path"
+      return 0
+    fi
+    printf '%s\n' "$path"
+  done
+}
+
+# Return slots fenced by fm_treehouse_fence_foreign_slots. The return is
+# conditional on the fence's own holder label, so a slot whose lease has since
+# changed hands is never released.
+fm_treehouse_fence_release() {  # <project-dir> <holder> <path>...
+  local project=$1 holder=$2 path rc=0
+  shift 2
+  for path in "$@"; do
+    [ -n "$path" ] || continue
+    if ! (cd -- "$project" && treehouse return --if-lease-holder "$holder" "$path" >/dev/null 2>&1 </dev/null); then
+      echo "warning: could not return fenced Treehouse slot $path (lease holder $holder); release it with: treehouse return --if-lease-holder '$holder' '$path'" >&2
+      rc=1
+    fi
+  done
+  return "$rc"
+}
+
 # Slot-owner claim: which task a Treehouse pool slot currently belongs to.
 #
 # Treehouse can record ownership durably: `treehouse get --lease --lease-holder`

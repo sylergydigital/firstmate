@@ -933,6 +933,7 @@ SPAWN_TASK_SET_LOCK=
 SPAWN_TASK_SET_LOCK_HELD=0
 SPAWN_TREEHOUSE_PROJECT_LOCK=
 SPAWN_TREEHOUSE_PROJECT_LOCK_HELD=0
+SPAWN_TREEHOUSE_FENCED=
 SPAWN_SLOT_CLAIMED=0
 RELAUNCH_REPLACEMENT_PENDING=0
 RELAUNCH_REPLACEMENT_BUSY_GEN=
@@ -971,6 +972,16 @@ parse_orca_worktree_result() {
   else
     ORCA_TERMINAL=
   fi
+}
+
+# Return any foreign Treehouse slots fenced for this spawn's allocation. Runs
+# once the pane holds its own slot, or from the abort trap.
+spawn_release_treehouse_fence() {
+  local fenced=$SPAWN_TREEHOUSE_FENCED
+  [ -n "$fenced" ] || return 0
+  SPAWN_TREEHOUSE_FENCED=
+  # shellcheck disable=SC2086 # fenced paths are newline-separated pool paths
+  (IFS=$'\n'; set -f; fm_treehouse_fence_release "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER" $fenced)
 }
 
 spawn_abort_cleanup() {
@@ -1097,6 +1108,7 @@ spawn_abort_cleanup() {
       echo "warning: leaving task $ID's slot claim on $WT in place; the Treehouse project lock is no longer held, so the next spawn's claim replaces it" >&2
     fi
   fi
+  spawn_release_treehouse_fence || true
   if [ "$SPAWN_TREEHOUSE_PROJECT_LOCK_HELD" = 1 ]; then
     SPAWN_TREEHOUSE_PROJECT_LOCK_HELD=0
     fm_lock_release "$SPAWN_TREEHOUSE_PROJECT_LOCK" || true
@@ -1217,6 +1229,7 @@ if [ "${#POS[@]}" -gt 0 ] && [ "${POS[0]}" != "$idpart" ] && case "$idpart" in *
   exit "$rc"
 fi
 ID=${POS[0]}
+SPAWN_TREEHOUSE_FENCE_HOLDER="firstmate-spawn-fence:$ID"
 fm_task_id_creation_valid "$ID" || { echo "error: invalid task id" >&2; exit 2; }
 if [ -e "$STATE" ] || [ -L "$STATE" ]; then
   fm_backlog_directory_present "$STATE" "state directory" || {
@@ -3350,6 +3363,11 @@ if [ "$RELAUNCH" -eq 1 ]; then
   fi
   [ "$KIND" = secondmate ] || validate_spawn_worktree "relaunch" "$T"
 elif [ "$KIND" != secondmate ] && [ "$BACKEND" != orca ]; then
+  # A pool shared with another clone of the same origin can offer that clone's
+  # worktree first; fence those slots so the get below lands in one of this
+  # clone's own (fm_treehouse_fence_foreign_slots owns why). The
+  # foreign-worktree refusals below stay as the backstop.
+  SPAWN_TREEHOUSE_FENCED=$(fm_treehouse_fence_foreign_slots "$PROJ_ABS" "$SPAWN_TREEHOUSE_FENCE_HOLDER")
   spawn_send_text_line "$WT_TARGET" 'treehouse get'
 
   # Wait for the treehouse subshell: the pane's cwd moves from the project to the worktree.
@@ -3430,6 +3448,7 @@ elif [ "$KIND" != secondmate ] && [ "$BACKEND" != orca ]; then
     fi
     SPAWN_SLOT_CLAIMED=1
   fi
+  spawn_release_treehouse_fence || true
 fi
 if [ "$RELAUNCH" -eq 0 ] && [ "$KIND" != secondmate ]; then
   freshen_spawn_worktree_base "$WT" || exit 1
