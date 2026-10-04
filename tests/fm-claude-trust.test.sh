@@ -238,8 +238,8 @@ JSON
   pass "fm-claude-trust.sh: preserves unrelated keys on the project-root entry"
 }
 
-# hasClaudeMdExternalIncludesApproved===false on the project-root entry is a
-# human's explicit "No, disable" answer, recorded in the SAME store their own
+# hasClaudeMdExternalIncludesApproved===false with WarningShown===true on the
+# project-root entry is a human's explicit "No, disable" answer, recorded in the SAME store their own
 # interactive sessions read. A spawn must never flip that to true on their
 # behalf: doing so would grant every later interactive session in that
 # checkout silent external-file inclusion the human declined. The whole
@@ -258,10 +258,34 @@ JSON
   expect_code 1 $? "a project that already declined external imports must be refused: $out"
   assert_contains "$out" "declined external CLAUDE.md imports" \
     "the refusal did not name the declined-consent reason"
+  assert_contains "$out" "approve the imports dialog interactively" \
+    "the refusal did not name the recovery"
   after=$(cat "$store")
   [ "$before" = "$after" ] || fail "the store was modified despite the refusal"
   assert_not_trusted "$store" "$WT" "the worktree entry was registered despite the refusal"
   pass "fm-claude-trust.sh: refuses to override a project's declined external-imports consent"
+}
+
+# Claude Code's own default project entry carries BOTH external-imports flags as
+# false before the dialog was ever shown; answering the dialog either way sets
+# hasClaudeMdExternalIncludesWarningShown to true. So false/false is "never
+# asked", not "No, disable": it must be treated like an absent flag - trust
+# registered, no import consent manufactured - rather than refused.
+test_project_root_entry_default_import_flags_are_not_a_decline() {
+  local rec store out
+  rec=$(make_case project-default-flags)
+  read_case "$rec"
+  store="$CONFIG/.claude.json"
+  cat > "$store" <<JSON
+{"hasCompletedOnboarding":true,"projects":{"$PROJ":{"allowedTools":[],"mcpContextUris":[],"mcpServers":{},"enabledMcpjsonServers":[],"disabledMcpjsonServers":[],"hasTrustDialogAccepted":false,"hasClaudeMdExternalIncludesApproved":false,"hasClaudeMdExternalIncludesWarningShown":false}}}
+JSON
+  out=$(run_trust "$CONFIG" "$WT" "$PROJ")
+  expect_code 0 $? "a never-asked default entry must not be refused as a decline: $out"
+  assert_trust_only_no_import_consent "$store" "$WT" \
+    "the worktree entry either lost trust or gained unearned import consent"
+  assert_trust_only_no_import_consent "$store" "$PROJ" \
+    "the project-root entry either lost trust or gained import consent it was never asked for"
+  pass "fm-claude-trust.sh: a never-asked default external-imports pair is not treated as a decline"
 }
 
 test_registration_is_idempotent() {
@@ -601,11 +625,24 @@ test_refused_spawn_leaves_no_task_state() {
   pass "fm-spawn.sh: a trust-refused claude spawn leaves no task state behind"
 }
 
+# Resolve the final prompt argument using the same shell argument splitting the
+# pane sees after the leading export statements.
+claude_launch_doorbell() {  # <launch command>
+  local command=$1
+  while [[ "$command" == export\ *\;* ]]; do
+    command=${command#*; }
+  done
+  (
+    eval "set -- $command"
+    printf '%s' "${!#}"
+  )
+}
+
 # The spawn half: a real fm-spawn of a claude worker must pre-register the
-# worktree AND deliver the launch command carrying the brief, with no dialog to
+# worktree AND deliver a record-backed doorbell for the brief, with no dialog to
 # answer and no human in the loop.
 test_claude_spawn_pretrusts_its_worktree_and_reaches_the_brief() {
-  local case_dir home proj wt config fakebin launch_log out
+  local case_dir home proj wt config fakebin launch_log out launch doorbell record
   case_dir="$TMP_ROOT/spawn"
   home="$case_dir/home"
   proj="$case_dir/project"
@@ -626,13 +663,181 @@ test_claude_spawn_pretrusts_its_worktree_and_reaches_the_brief() {
   assert_present "$launch_log" "the claude spawn sent no launch command"
   assert_grep 'claude --dangerously-skip-permissions' "$launch_log" \
     "the launch command was not the claude worker launch"
-  assert_grep "$home/data/trustspawn/launch-brief.md" "$launch_log" \
-    "the launch command did not carry the brief the worker must read"
+  launch=$(cat "$launch_log")
+  doorbell=$(claude_launch_doorbell "$launch")
+  record=$(printf '%s' "$doorbell" | sed -n "s/.*: Firstmate operational input waiting: read '\([^']*\)'.*/\1/p")
+  [ -n "$record" ] || fail "the launch command did not carry a brief doorbell"
+  [ "$(printf '%s' "$doorbell" | FM_STATE_OVERRIDE="$home/state" "$ROOT/bin/fm-operational-input.sh" doorbell-kind)" = launch-brief ] \
+    || fail "the launch command's doorbell did not name a brief record in the receiving home"
+  [ "$(printf '%s' "$doorbell" | FM_STATE_OVERRIDE="$home/state" "$ROOT/bin/fm-operational-input.sh" open "$record")" = "$(cat "$home/data/trustspawn/launch-brief.md")" ] \
+    || fail "the worker could not read its launch brief from the record"
   # The worker must read the SAME store the registration wrote, or the trust
   # would land somewhere the pane never looks.
   assert_grep "CLAUDE_CONFIG_DIR='$config'" "$launch_log" \
     "the launch command did not point the worker at the store that was trusted"
-  pass "fm-spawn.sh: a claude spawn pre-trusts its worktree and launches with the brief"
+  pass "fm-spawn.sh: a claude spawn pre-trusts its worktree and launches with a readable brief doorbell"
+}
+
+# A secondmate home is the second directory a claude launch starts in, and it is
+# as unseen by Claude as a fresh worktree. The standalone-clone shape is the one
+# that wedged in production: the trust step was skipped for every secondmate, so
+# nothing was registered and the pane stopped on the dialog before it read its
+# charter.
+test_secondmate_standalone_clone_home_is_trusted() {
+  local case_dir home out launch doorbell record
+  case_dir="$TMP_ROOT/sm-clone-spawn"
+  home="$case_dir/fm-homes/nomistakes-n1"
+  seed_secondmate_home "$home" nomistakes-n1 clone
+  out=$(spawn_secondmate_claude "$case_dir" "$home" nomistakes-n1)
+  expect_code 0 $? "a claude secondmate spawn into a standalone-clone home must succeed: $out"
+  assert_trusted "$case_dir/claude-config/.claude.json" "$home" \
+    "the claude secondmate spawn did not pre-register trust for its standalone-clone home"
+  assert_present "$case_dir/launch.log" "the claude secondmate spawn sent no launch command"
+  assert_grep 'claude --dangerously-skip-permissions' "$case_dir/launch.log" \
+    "the launch command was not the claude secondmate launch"
+  launch=$(cat "$case_dir/launch.log")
+  doorbell=$(claude_launch_doorbell "$launch")
+  record=$(printf '%s' "$doorbell" | sed -n "s/.*: Firstmate operational input waiting: read '\([^']*\)'.*/\1/p")
+  [ -n "$record" ] || fail "the secondmate launch command did not carry a brief doorbell"
+  [ "$(printf '%s' "$doorbell" | FM_STATE_OVERRIDE="$home/state" "$ROOT/bin/fm-operational-input.sh" doorbell-kind)" = launch-brief ] \
+    || fail "the secondmate's doorbell did not name a brief record in its home"
+  [ "$(printf '%s' "$doorbell" | FM_STATE_OVERRIDE="$home/state" "$ROOT/bin/fm-operational-input.sh" open "$record")" = "$(cat "$home/data/charter.md")" ] \
+    || fail "the secondmate could not read its charter from the record"
+  # The pane must read the SAME store the registration wrote, or the trust would
+  # land somewhere it never looks and the dialog would appear anyway.
+  assert_grep "CLAUDE_CONFIG_DIR='$case_dir/claude-config'" "$case_dir/launch.log" \
+    "the launch command did not point the secondmate at the store that was trusted"
+  pass "fm-spawn.sh: a claude secondmate spawn pre-trusts a standalone-clone home"
+}
+
+# The other seeded shape, a treehouse-leased linked worktree. It must be trusted
+# through the same seed evidence rather than incidentally, so the registration
+# does not depend on which shape the home happens to have.
+test_secondmate_leased_worktree_home_is_trusted() {
+  local case_dir home out
+  case_dir="$TMP_ROOT/sm-leased-spawn"
+  home="$case_dir/leased/home"
+  mkdir -p "$case_dir/leased"
+  seed_secondmate_home "$home" leased-n1 worktree
+  out=$(spawn_secondmate_claude "$case_dir" "$home" leased-n1)
+  expect_code 0 $? "a claude secondmate spawn into a leased worktree home must succeed: $out"
+  assert_trusted "$case_dir/claude-config/.claude.json" "$home" \
+    "the claude secondmate spawn did not pre-register trust for its leased worktree home"
+  pass "fm-spawn.sh: a claude secondmate spawn pre-trusts a leased worktree home"
+}
+
+# The seed is the whole security boundary for home-level trust, so every path
+# that is not a home seeded for THIS secondmate is refused and left untrusted.
+# Each row drives one structural property apart from a genuine home.
+test_secondmate_home_trust_refuses_everything_unseeded() {
+  local case_dir config home target out
+  case_dir="$TMP_ROOT/sm-refusals"
+  config="$case_dir/claude-config"
+  mkdir -p "$config"
+
+  # A plain directory: no marker at all.
+  target="$case_dir/plain"
+  mkdir -p "$target"
+  out=$(run_home_trust "$config" "$target" plain-n1)
+  expect_code 1 $? "a plain directory must be refused: $out"
+  assert_contains "$out" "no .fm-secondmate-home marker" "the refusal did not name the missing marker"
+  assert_not_trusted "$config/.claude.json" "$target" "a plain directory was trusted"
+
+  # A firstmate checkout that was never seeded as a secondmate home: every other
+  # structural signal matches and only the marker is missing.
+  target="$case_dir/checkout"
+  seed_secondmate_home "$target" checkout-n1 clone
+  rm -f "$target/.fm-secondmate-home"
+  out=$(run_home_trust "$config" "$target" checkout-n1)
+  expect_code 1 $? "an unseeded firstmate checkout must be refused: $out"
+  assert_contains "$out" "no .fm-secondmate-home marker" "the refusal did not name the missing marker"
+  assert_not_trusted "$config/.claude.json" "$target" "an unseeded firstmate checkout was trusted"
+
+  # A home seeded for a DIFFERENT secondmate: one home's trust must not be
+  # granted while spawning another id.
+  target="$case_dir/other-mate"
+  seed_secondmate_home "$target" other-n1 clone
+  out=$(run_home_trust "$config" "$target" wanted-n1)
+  expect_code 1 $? "a home marked for another secondmate must be refused: $out"
+  assert_contains "$out" "other-n1" "the refusal did not name the id the home is marked for"
+  assert_not_trusted "$config/.claude.json" "$target" "a home marked for another secondmate was trusted"
+
+  # A marker that is a symlink: another file's bytes must not stand in for the
+  # seed, even when they read as the right id.
+  target="$case_dir/linked-marker"
+  seed_secondmate_home "$target" linked-n1 clone
+  printf 'linked-n1\n' > "$case_dir/planted-id"
+  ln -sf "$case_dir/planted-id" "$target/.fm-secondmate-home"
+  out=$(run_home_trust "$config" "$target" linked-n1)
+  expect_code 1 $? "a symlinked marker must be refused: $out"
+  assert_contains "$out" "symlink" "the refusal did not name the symlinked marker"
+  assert_not_trusted "$config/.claude.json" "$target" "a home whose marker is a symlink was trusted"
+
+  # An operational directory that escapes the home: the home's own working
+  # surface must stay inside it.
+  target="$case_dir/escaping"
+  seed_secondmate_home "$target" escaping-n1 clone
+  rm -rf "$target/projects"
+  mkdir -p "$case_dir/elsewhere"
+  ln -s "$case_dir/elsewhere" "$target/projects"
+  out=$(run_home_trust "$config" "$target" escaping-n1)
+  expect_code 1 $? "a home whose operational directory escapes it must be refused: $out"
+  assert_contains "$out" "outside the home" "the refusal did not name the escaping directory"
+  assert_not_trusted "$config/.claude.json" "$target" "a home whose projects/ escapes it was trusted"
+
+  # The user's own home directory, seeded to prove the marker alone cannot carry
+  # it: HOME is refused in this mode exactly as it is for a worktree.
+  target="$case_dir/user-home"
+  seed_secondmate_home "$target" userhome-n1 clone
+  out=$(run_home_trust "$config" "$target" userhome-n1 "$target")
+  expect_code 1 $? "the user's home directory must be refused: $out"
+  assert_contains "$out" "home directory" "the refusal did not name the home directory"
+  assert_not_trusted "$config/.claude.json" "$target" "the user's home directory was trusted"
+  # Prove the seed really would have been accepted, so the guard above is what
+  # refused rather than an unrelated failure.
+  out=$(run_home_trust "$config" "$target" userhome-n1 "$case_dir/elsewhere-home")
+  expect_code 0 $? "the same seeded home must be accepted once it is not HOME: $out"
+
+  pass "fm-claude-trust.sh: home-level trust is refused for everything but a home seeded for this secondmate"
+}
+
+# A secondmate home is not a linked worktree, so worktree mode must keep
+# refusing it rather than quietly widening to cover the new case.
+test_worktree_mode_still_refuses_a_secondmate_home() {
+  local case_dir config home out
+  case_dir="$TMP_ROOT/sm-wrong-mode"
+  config="$case_dir/claude-config"
+  home="$case_dir/home"
+  mkdir -p "$config"
+  seed_secondmate_home "$home" mode-n1 clone
+  out=$(run_trust "$config" "$home" "$home")
+  expect_code 1 $? "worktree mode must still refuse a standalone-clone home: $out"
+  assert_contains "$out" "primary checkout" "the refusal did not name the primary checkout"
+  assert_not_trusted "$config/.claude.json" "$home" "worktree mode trusted a standalone-clone home"
+  pass "fm-claude-trust.sh: worktree mode still refuses a secondmate home"
+}
+
+# The fail-closed half for secondmates: when the home's trust genuinely cannot be
+# recorded, the spawn must refuse rather than launch a pane that would wedge on
+# the dialog. This is the guard that never fired while the step was skipped.
+test_secondmate_spawn_fails_closed_when_home_trust_cannot_be_recorded() {
+  local case_dir home out
+  case_dir="$TMP_ROOT/sm-failclosed"
+  home="$case_dir/fm-homes/failclosed-n1"
+  # Root owns /etc/passwd, so a store resolving to it is refused as another
+  # user's file. Running as root would own it and make the refusal vacuous.
+  if [ "$(id -u)" = 0 ]; then
+    pass "fm-spawn.sh: a claude secondmate spawn refuses when home trust cannot be recorded (skipped as root)"
+    return 0
+  fi
+  seed_secondmate_home "$home" failclosed-n1 clone
+  mkdir -p "$case_dir/claude-config"
+  ln -s /etc/passwd "$case_dir/claude-config/.claude.json"
+  out=$(spawn_secondmate_claude "$case_dir" "$home" failclosed-n1)
+  expect_code 1 $? "a secondmate spawn whose trust registration is refused must fail: $out"
+  assert_contains "$out" "workspace trust" "the spawn did not report the trust refusal"
+  assert_absent "$case_dir/launch.log" "a secondmate was launched into a home whose trust could not be recorded"
+  pass "fm-spawn.sh: a claude secondmate spawn refuses when home trust cannot be recorded"
 }
 
 # A secondmate home is the second directory a claude launch starts in, and it is
@@ -796,6 +1001,7 @@ test_fresh_worktree_also_trusts_the_project_root_without_import_consent
 test_registration_carries_forward_existing_import_consent
 test_project_root_entry_preserves_other_keys
 test_project_root_entry_declined_external_imports_is_not_overridden
+test_project_root_entry_default_import_flags_are_not_a_decline
 test_registration_is_idempotent
 test_primary_checkout_is_refused
 test_cdpath_cannot_defeat_the_primary_checkout_refusal
