@@ -56,14 +56,15 @@
 #              still exists - on the same or a newly chosen
 #              harness/model/effort - so switching harness is one ordinary use
 #              of this verb. When the recorded endpoint is instead proven gone -
-#              a Herdr pane or workspace destroyed in churn - the launch owner
-#              re-creates one in that worktree, in the herdr session the record
-#              names, and the task's record rebinds to it; that is how a task
-#              whose terminal was destroyed is reclaimed by the home that owns
-#              it, rather than being stranded with a parked approval nobody can
-#              answer. Reclaim is HERDR-ONLY for the reason `exit` gives above:
-#              a tmux `missing` cannot be proven absent from a task record, so
-#              it refuses.
+#              a Herdr pane destroyed in churn - the launch owner re-creates one
+#              in that worktree, in the herdr session and workspace the record
+#              names, after proving that workspace still exists and that no
+#              other fm-<id> tab can own the task, and the task's record
+#              rebinds to it; that is how a task whose terminal was destroyed
+#              is reclaimed by the home that owns it, rather than being
+#              stranded with a parked approval nobody can answer. Reclaim is
+#              HERDR-ONLY for the reason `exit` gives above: a tmux `missing`
+#              cannot be proven absent from a task record, so it refuses.
 #              An explicit `default` model or effort clears that
 #              axis for the replacement. With no explicit axis, a secondmate
 #              re-resolves its durable config/secondmate-harness pin (harness
@@ -195,7 +196,6 @@ CONTROL_LOCK=
 CONTROL_LOCK_HELD=0
 RELAUNCH_ACTIVE=0
 RELAUNCH_PHASE=start
-RELAUNCH_ENDPOINT_MISSING=0
 
 control_cleanup() {
   local status=$?
@@ -992,12 +992,6 @@ do_relaunch() {
   else
     note_line="note=none"
   fi
-  state=$(agent_state)
-  if [ "$BACKEND" = herdr ] && [ "$state" = missing ]; then
-    # Herdr has no endpoint left to stop. fm-spawn performs the locked
-    # ownership and workspace proof before recreating the pane.
-    RELAUNCH_ENDPOINT_MISSING=1
-  fi
   safe_checkpoint
   cp -p "$META" "$META_PRIOR" || die "could not preserve task $ID's durable record before relaunching"
   RELAUNCH_ACTIVE=1
@@ -1043,15 +1037,6 @@ do_relaunch() {
     die "the replacement agent for $ID could not be launched on $TARGET_HARNESS"
   fi
 
-  # A missing Herdr recovery publishes a new pane identity, so refresh the
-  # control target from the replacement record before checking its liveness.
-  # This also keeps a deliberate backend switch's postcondition on the new
-  # adapter rather than the retired endpoint.
-  fm_backend_validate_task_endpoint "$META" "$ID" || {
-    die "the replacement record for $ID could not be validated after launch"
-  }
-  BACKEND=$FM_BACKEND_VALIDATED_BACKEND
-  T=$FM_BACKEND_VALIDATED_TARGET
   state=$(wait_agent_state "$LAUNCH_WAIT" alive) || {
     die "the replacement agent for $ID did not come up within ${LAUNCH_WAIT}s (endpoint reads '$state')"
   }

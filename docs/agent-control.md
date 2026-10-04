@@ -80,7 +80,7 @@ A relaunch does take one session reference when the endpoint's own runtime recor
    A secondmate relaunch does not require one and never rewrites its standing charter.
 4. **Stop the old agent** through the `exit` verb, with its postcondition.
 5. **Launch the replacement** through its single owner, `bin/fm-spawn.sh --relaunch`, which reuses the recorded worktree instead of creating one, adopts the recorded endpoint when it still exists, clears the previous harness's per-task wiring, and arms a fresh busy generation.
-   When the recorded endpoint is proven gone rather than merely idle or unreachable - which only Herdr can establish - the launch owner creates one fresh endpoint in that same worktree and the republished record rebinds the task to it - see [Reclaiming a task whose endpoint is gone](#reclaiming-a-task-whose-endpoint-is-gone).
+   When the recorded endpoint is proven gone rather than merely idle or unreachable - which only Herdr can establish - the launch owner creates one fresh endpoint in that same worktree and recorded Herdr workspace, and the republished record rebinds the task to it - see [Reclaiming a task whose endpoint is gone](#reclaiming-a-task-whose-endpoint-is-gone).
 6. **Preserve runtime-bound status authority where supported.**
    The endpoint's runtime may bind pane status to one session identity; the launch owner preserves it only when that runtime records a reference the replacement adapter can consume, and otherwise launches the ordinary fresh session.
    This reference is a launch input, never authority to send, close, or act on the pane.
@@ -92,13 +92,14 @@ Switching harness is therefore one ordinary relaunch rather than a separate mech
 
 A Herdr pane or workspace can be destroyed out from under a live task by churn or a session restart.
 The task's worktree, branch, commits, and uncommitted changes all survive that; only its terminal does not.
+A reclaim recovers a destroyed pane; a destroyed recorded workspace refuses.
 
 **Reclaim is Herdr-only.** On tmux, both verbs refuse a `missing` endpoint, leaving it exactly as deadlocked as it was before this mechanism existed - deliberately, and with the reason stated rather than guessed past.
 
 Two endpoint verdicts are agent-free, and both license a relaunch:
 
 - `dead` - the endpoint exists and confidently holds no agent. It is **adopted**, so the task keeps its exact recorded address.
-- gone, **proven** - there is no endpoint and therefore no agent, and it cannot be adopted, so the launch owner **creates one fresh endpoint in the recorded worktree** and the republished record rebinds the task to it.
+- gone, **proven** - there is no endpoint and therefore no agent, and it cannot be adopted, so the launch owner **creates one fresh endpoint in the recorded worktree and recorded workspace** and the republished record rebinds the task to it.
 
 That proof is its own step, because the classifier's `missing` is not one state: it conflates *the endpoint was destroyed* with *the endpoint is unreachable from here right now*.
 An unreachable endpoint can still hold the live agent a rebind would duplicate, so absence is proven and never inferred from a failed read - and whether it is provable at all is a property of the backend:
@@ -126,18 +127,19 @@ What a reclaim is not:
 - It is **not** a peer seat's operation. `fm-control` resolves an exact task id against **this** home's `state/`, so only the home that owns the task can reclaim it.
 - It does **not** cover a secondmate. A secondmate whose endpoint is gone already has one recovery path - `bin/fm-spawn.sh <id> --secondmate`, driven by the session-start sweep or the watcher's liveness tick - so control-plane reclaim refuses and names it rather than becoming a second path to the same outcome.
 
-The re-created tab is opened in the herdr session the record names, never in whichever session the recovering seat happens to sit in - relocating a task onto another herdr server would be an identity change published as a self-consistent but wrong record.
-A seat that *claims* a herdr launcher pane belonging to a different session is refused rather than allowed to place the endpoint somewhere else, so reclaim such a task from a seat in the recorded session.
-A seat with no herdr launcher pane at all - a plain ssh or cron shell, which is the ordinary way an operator reclaims - is not refused: placement falls back to the recorded session's labeled container, so the tab still lands in the session the record names.
-The reclaim pins the recorded **session** but not the **workspace**: the container follows the reclaiming seat, so a reclaim run from a seat inside the recorded session places the new tab in *that seat's* workspace rather than the recorded `herdr_workspace_id`, even when the recorded workspace still exists and only the pane was destroyed.
-The record is republished consistently and no work is lost, but the task's `herdr_workspace_id` moves with it.
-The pane id necessarily changes (the pane did not survive), and the record follows it.
-A Herdr reclaim deliberately uses the flat container shape rather than presentation projection: projection is a presentation-only layout that is never endpoint or ownership authority, and flat is already the documented fallback for every recovery it cannot bind exactly ([`docs/herdr-backend.md`](herdr-backend.md)).
+The re-created tab is opened in the herdr session **and workspace** the record names, never in whichever session or workspace the recovering seat happens to sit in - relocating a task onto another herdr server or workspace would be an identity change published as a self-consistent but wrong record.
+Placement never consults the reclaiming seat, so a plain ssh or cron shell and a seat inside any herdr session reclaim to the same place.
+Before it creates anything, the launch owner runs a read-only preflight over the recorded session, under the task's lifecycle lock, and refuses when:
 
-**Known limitation - a refusal before the record is republished leaves a stray husk pane** (follow-up bead `fm-herdr-rebind-leak-20260913`).
-The rebind registers no abort cleanup, so a refusal in the window between the new tab being created and the record being republished leaves that pane behind while the record still names the old, gone one.
-The stray pane holds a bare shell - the harness is not delivered until after publication - so the next reclaim cleans up after it: the re-created tab carries the same `fm-<id>` label, `tab create` finds it, classifies it a husk, and closes and replaces it.
-That self-heals only when the retry resolves the *same* workspace, which the placement rule above does not guarantee.
+- the recorded `herdr_workspace_id` no longer exists;
+- a task tab labeled `fm-<id>` exists in any other workspace, which would make the reclaim a second copy of the task;
+- an `fm-<id>` tab in the recorded workspace is not positively agent-free - only `dead` or `no-agent` passes, so a live, `stale-agent`, or unreadable tab refuses;
+- the task's presentation journal does not name the recorded session, workspace, tab, and pane.
+
+The pane and tab ids necessarily change (the pane did not survive), and the record follows them; `herdr_session` and `herdr_workspace_id` do not.
+A Herdr reclaim never creates a presentation projection: projection is a presentation-only layout that is never endpoint or ownership authority ([`docs/herdr-backend.md`](herdr-backend.md)).
+When the task already has a presentation journal, the reclaim copies it before creating the replacement, advances it to the new tab and pane, and restores that copy if the relaunch aborts before its record is republished.
+Until the launch command is delivered, an aborted relaunch closes the pane it minted through the same exact-id abort cleanup a projected spawn uses, so a refusal in that window does not leave a stray pane beside the record's old, gone endpoint.
 The worktree and the task's records are unaffected either way.
 
 ### Failure and rollback
@@ -189,5 +191,5 @@ The empirical basis for each adapter's value is the `harness-adapters` skill's v
 ## Verification
 
 - `tests/fm-control.test.sh` - the adapter contract for its verified-harness lane (adapters outside the lane pin their control mechanics in their own harness suites), the backend capability matrix, exact-id scoping, the closed verb list, the busy, idle, dead, and idempotent lifecycle cases, and marker non-regression, all against a stubbed session provider.
-- `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, rollback after a failed launch, and the endpoint-absence proof both verbs share - the Herdr reclaim of a destroyed endpoint, and tmux refusing one it cannot prove absent.
+- `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, rollback after a failed launch, and the endpoint-absence proof both verbs share - the Herdr reclaim of a destroyed endpoint with its missing-workspace, other-workspace duplicate, and drifted-journal refusals and its journal restore and pane cleanup on abort, and tmux refusing one it cannot prove absent.
 - `tests/fm-control-herdr-smoke.test.sh` - the second state-verified backend against the real herdr binary, on an isolated throwaway lab session.

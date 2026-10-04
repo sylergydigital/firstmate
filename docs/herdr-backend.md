@@ -157,12 +157,13 @@ Rename it manually before expecting new tasks or recovery to use it.
 
 Recovery and list-live still scan the first workspace matching the home label, because they address panes they already recorded rather than choosing where new work goes.
 The one recovery that does place new work is the control plane's reclaim of a destroyed endpoint.
-It mints a replacement tab through this section's ordinary placement rules while pinning the herdr session the task's record names ([`agent-control.md`](agent-control.md) "Reclaiming a task whose endpoint is gone").
+It does not use this section's ordinary placement rules: it mints the replacement tab in the exact herdr session and workspace the task's record names ([`agent-control.md`](agent-control.md) "Reclaiming a task whose endpoint is gone").
 
 Existing task operations use recorded endpoint ids and do not move a live task when labels change.
 A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or classifies as `dead` or `no-agent`.
 A live, `stale-agent`, or otherwise unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation; the recovery preflight uses the strict pane classifier even though the recovery-grade relaunch read maps a `stale-agent` recorded endpoint to `dead`.
 When that task has a presentation journal, the recovery copies it before creating the replacement, advances the journal to the new tab and pane, and restores the pre-recovery copy if the relaunch aborts before its replacement record is published.
+An abort before the launch command is delivered also closes the minted pane by its exact id.
 The per-home workspace is reused while it has task tabs.
 Closing its last tab can remove the workspace, and the next spawn recreates it.
 

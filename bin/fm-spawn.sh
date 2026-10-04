@@ -59,17 +59,18 @@
 #   or herdr), and clears the previous harness's per-task wiring before arming
 #   the new incarnation. Two verdicts are agent-free: a `dead` endpoint is
 #   ADOPTED as-is, while an endpoint PROVEN gone is RE-CREATED in the recorded
-#   worktree and the republished record rebinds the task to it. That proof is
-#   its own step, because a backend's `missing` also covers an endpoint that is
-#   merely unreachable from here - and it is only available on HERDR, which must
-#   still read the recorded pane as gone once that session's server is running
-#   again. A tmux `missing` always refuses: a task record carries no socket
-#   identity for its endpoint, so no read here can tell a destroyed window from
-#   one on a tmux server this process cannot address. An endpoint that turns out
-#   to have survived refuses too. The worktree is reused untouched either way; a
-#   rebind is a recovery, never a teardown. Only a crewmate or scout rebinds: a
-#   secondmate whose endpoint is gone is respawned by its own owner
-#   (`--secondmate`, driven by the session-start liveness sweep).
+#   worktree and recorded Herdr workspace and the republished record rebinds
+#   the task to it. That proof is its own step, because a backend's `missing`
+#   also covers an endpoint that is merely unreachable from here - and it is
+#   only available on HERDR, which must still read the recorded pane as gone
+#   once that session's server is running again. A tmux `missing` always
+#   refuses: a task record carries no socket identity for its endpoint, so no
+#   read here can tell a destroyed window from one on a tmux server this process
+#   cannot address. An endpoint that turns out to have survived refuses too. The
+#   worktree is reused untouched either way; a rebind is a recovery, never a
+#   teardown. Only a crewmate or scout rebinds: a secondmate whose endpoint is
+#   gone is respawned by its own owner (`--secondmate`, driven by the
+#   session-start liveness sweep).
 #   Every fresh ship/scout launch and replacement explicitly enters the recorded
 #   worktree immediately before trust setup and brief delivery, and a pre-launch
 #   cwd check refuses any endpoint that still reports another copy; a Herdr shell
@@ -1212,7 +1213,6 @@ RELAUNCH_REPLACEMENT_BUSY_GEN=
 RELAUNCH_REPLACEMENT_HARNESS=
 RELAUNCH_REPLACEMENT_STATE=
 RELAUNCH_REPLACEMENT_WT=
-RELAUNCH_ENDPOINT_MISSING=0
 HERDR_RELAUNCH_JOURNAL=
 HERDR_RELAUNCH_JOURNAL_PRIOR=
 RELAUNCH_META_PUBLISHED=0
@@ -1270,6 +1270,7 @@ spawn_abort_cleanup() {
     [ ! -e "$SPAWN_META_TMP" ] &&
     [ ! -L "$SPAWN_META_TMP" ]; then
     RELAUNCH_REPLACEMENT_PENDING=0
+    RELAUNCH_META_PUBLISHED=1
   fi
   if [ "$RELAUNCH_REPLACEMENT_PENDING" = 1 ]; then
     RELAUNCH_REPLACEMENT_PENDING=0
@@ -1288,6 +1289,14 @@ spawn_abort_cleanup() {
       fi
     fi
   fi
+  if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] &&
+    [ "$RELAUNCH_META_PUBLISHED" != 1 ] &&
+    [ -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
+    mv -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" "$HERDR_RELAUNCH_JOURNAL" 2>/dev/null ||
+      echo "warning: could not restore task $ID's Herdr recovery journal after an aborted relaunch; its pre-recovery copy is kept at $HERDR_RELAUNCH_JOURNAL_PRIOR" >&2
+    HERDR_RELAUNCH_JOURNAL_PRIOR=
+  fi
+  [ -z "$HERDR_RELAUNCH_JOURNAL_PRIOR" ] || rm -f "$HERDR_RELAUNCH_JOURNAL_PRIOR" 2>/dev/null || true
   if [ "$HERDR_PROJECTION_ABORT_CLEANUP" = 1 ] &&
     [ "$HERDR_PRESENTATION_ORDER_LOCK_HELD" != 1 ]; then
     if ! spawn_herdr_presentation_order_lock_acquire "${HERDR_PROJECTION_ABORT_SESSION:-}"; then
@@ -1834,19 +1843,13 @@ if [ "$RELAUNCH" -eq 1 ]; then
     }
   fi
   if [ "$BACKEND" = herdr ]; then
-    # fm-spawn uses HERDR_PANE_ID for the TASK's pane, while the herdr adapter
-    # reads that SAME name as the pane THIS process is itself running in
-    # (fm_backend_herdr_launcher_identity). The record is about to overwrite it,
-    # so keep what herdr actually injected: a rebind still has to prove its own
-    # launcher identity, and a task's recorded pane is not it.
-    RELAUNCH_LAUNCHER_PANE_ID=${HERDR_PANE_ID:-}
     HERDR_SES=$(fm_meta_get "$RELAUNCH_META" herdr_session)
     HERDR_WORKSPACE_ID=$(fm_meta_get "$RELAUNCH_META" herdr_workspace_id)
     HERDR_TAB_ID=$(fm_meta_get "$RELAUNCH_META" herdr_tab_id)
     HERDR_PANE_ID=$(fm_meta_get "$RELAUNCH_META" herdr_pane_id)
     HERDR_RELAUNCH_OLD_TAB_ID=$HERDR_TAB_ID
     HERDR_RELAUNCH_OLD_PANE_ID=$HERDR_PANE_ID
-    if [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
+    if [ "$RELAUNCH_REBIND" -eq 1 ]; then
       HERDR_RELAUNCH_JOURNAL=$(fm_backend_herdr_projection_journal_path "$STATE" "$ID")
       fm_backend_herdr_relaunch_preflight \
         "$HERDR_SES" "$HERDR_WORKSPACE_ID" "$ID" "$RELAUNCH_TARGET" \
@@ -3582,60 +3585,34 @@ if [ "$RELAUNCH" -eq 1 ]; then
     # (fm_control_endpoint_absence_verdict owns that argument). tmux and every
     # secondmate were already refused, so there is no dispatch left to make.
     #
-    # This deliberately uses the FLAT container shape rather than Herdr's
-    # presentation projection: projection is a presentation-only layout that is
-    # never endpoint or ownership authority, and flat is already the documented
-    # fallback for every recovery it cannot bind exactly
-    # (docs/herdr-backend.md "Presentation spaces").
-    #
-    # KNOWN LIMITATION (bead fm-herdr-rebind-leak-20260913): the tab minted
-    # below is registered with no abort cleanup, so a later refusal leaves that
-    # pane behind and a retry mints another. Documented in
-    # docs/agent-control.md rather than fixed here, because the remedy is
-    # machinery the ordinary flat spawn path does not have either.
-    #
-    # Re-create the tab under the RECORDED herdr session. Without the explicit
-    # session the container would resolve from the AMBIENT one
-    # (${HERDR_SESSION:-default}), so reclaiming a task recorded on a named
-    # session from a seat that is not in it would silently relocate the task
-    # onto another herdr server - an identity change, published as a
-    # self-consistent but wrong record.
-    HERDR_REBIND_SES=${RELAUNCH_TARGET%%:*}
-    HERDR_CONTAINER_RAW=$(HERDR_PANE_ID="$RELAUNCH_LAUNCHER_PANE_ID" \
-      fm_backend_herdr_container_ensure "$PROJ_ABS" launcher-home "$HERDR_REBIND_SES") || {
-      # container_ensure returns 1 for several unrelated reasons - a failed
-      # version check, a server that will not start, an ambiguous workspace
-      # label, a cross-session launcher identity, a failed workspace create -
-      # and each already printed its own accurate message. Add only what this
-      # layer actually knows, and name the session mismatch solely when there
-      # IS one, rather than asserting a cause this condition cannot establish.
-      #
-      # A seat with NO herdr pane never reaches the cross-session guard at all:
-      # fm_backend_herdr_launcher_identity returns 2 for it and the placement
-      # falls back to the recorded session's labeled container, which is what
-      # makes a plain ssh or cron reclaim work. Its ambient session still reads
-      # `default` (fm_backend_herdr_session's fallback), so the inequality alone
-      # would fire for EVERY named-session task reclaimed from a plain shell and
-      # send the operator chasing a session mismatch that was never the cause.
-      HERDR_AMBIENT_SES=$(fm_backend_herdr_session)
-      if [ -n "$RELAUNCH_LAUNCHER_PANE_ID" ] && [ "$HERDR_AMBIENT_SES" != "$HERDR_REBIND_SES" ]; then
-        echo "error: task $ID's endpoint could not be re-created in its recorded herdr session '$HERDR_REBIND_SES'; this seat is running in herdr session '$HERDR_AMBIENT_SES', and a reclaim never moves a task to another session" >&2
-      else
-        echo "error: task $ID's endpoint could not be re-created in its recorded herdr session '$HERDR_REBIND_SES'; see the refusal above for what failed" >&2
-      fi
+    # The tab is created in the RECORDED session and workspace, never in one
+    # resolved from the ambient session or the reclaiming seat, after the
+    # locked read-only preflight above proved that workspace still exists and
+    # that no other fm-<id> tab can own this task. Until the launch command is
+    # delivered the minted pane is abort-cleaned, and a presentation journal is
+    # advanced to it and restored if the record is never republished.
+    HERDR_TASK_IDS=$(fm_backend_herdr_create_task "$HERDR_SES:$HERDR_WORKSPACE_ID" "$W" "$WT") || {
+      echo "error: task $ID's endpoint could not be re-created in its recorded herdr workspace '$HERDR_WORKSPACE_ID' (session '$HERDR_SES'); see any refusal above for what failed" >&2
       exit 1
     }
-    CONTAINER=${HERDR_CONTAINER_RAW%%$'\t'*}
-    HERDR_SEEDED_DEFAULT_TAB_ID=${HERDR_CONTAINER_RAW#*$'\t'}
-    HERDR_SES=${CONTAINER%%:*}
-    HERDR_WORKSPACE_ID=${CONTAINER#*:}
-    HERDR_TASK_IDS=$(fm_backend_herdr_create_task "$CONTAINER" "$W" "$WT" "$HERDR_SEEDED_DEFAULT_TAB_ID") || exit 1
     read -r HERDR_TAB_ID HERDR_PANE_ID <<EOF
 $HERDR_TASK_IDS
 EOF
     if [ -z "$HERDR_TAB_ID" ] || [ -z "$HERDR_PANE_ID" ]; then
       echo "error: herdr did not return a tab/pane id for $W" >&2
       exit 1
+    fi
+    HERDR_PROJECTION_ABORT_CLEANUP=1
+    HERDR_PROJECTION_ABORT_SESSION=$HERDR_SES
+    HERDR_PROJECTION_ABORT_TASK_PANE=$HERDR_PANE_ID
+    HERDR_PROJECTION_ABORT_SEEDED_PANE=
+    if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
+      fm_backend_herdr_projection_journal_replace_endpoint \
+        "$HERDR_RELAUNCH_JOURNAL" "$ID" "$HERDR_RELAUNCH_OLD_TAB_ID" "$HERDR_RELAUNCH_OLD_PANE_ID" \
+        "$HERDR_TAB_ID" "$HERDR_PANE_ID" >/dev/null 2>&1 || {
+        echo "error: task $ID's Herdr recovery journal could not be advanced to its replacement endpoint" >&2
+        exit 1
+      }
     fi
     T="$HERDR_SES:$HERDR_PANE_ID"
     SES=$HERDR_SES
@@ -5413,7 +5390,7 @@ if [ "${HERDR_PROJECTED:-0}" -eq 1 ]; then
   spawn_herdr_presentation_order_lock_release
 fi
 spawn_send_key "$T" Enter
-if [ "$RELAUNCH_ENDPOINT_MISSING" = 1 ]; then
+if [ "$RELAUNCH_REBIND" -eq 1 ]; then
   # The replacement pane has now received the launch command. Keep it and let
   # the published record own it.
   HERDR_PROJECTION_ABORT_CLEANUP=0

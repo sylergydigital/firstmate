@@ -575,8 +575,6 @@ tests/fm-cd-pretool-check.test.sh
 tests/fm-composer-lib.test.sh
 tests/fm-send-popup-settle.test.sh
 tests/fm-pi-primary-types.test.sh
-tests/fm-grok-harness.test.sh
-tests/fm-composer-lib.test.sh
 tests/fm-review-diff.test.sh
 tests/fm-send-settle.test.sh
 tests/fm-ensure-agents-md.test.sh

@@ -293,33 +293,6 @@ catchup_summary() {
   printf '%s\t%s\n' "$count" "$reason"
 }
 
-# The lifecycle retention reasons the gate kept, one per line, empty when the
-# gate was retained for open blockers alone.
-gate_retention_reasons() {  # <file>
-  local file=$1 tag kind text
-  while IFS="$(printf '\t')" read -r tag kind text; do
-    [ "$tag" = evidence ] && [ "$kind" = lifecycle ] || continue
-    printf '%s\n' "$text"
-  done < "$file"
-}
-
-gate_has_blockers() {  # <file>
-  grep -q "^blocker$(printf '\t')" "$1" 2>/dev/null
-}
-
-# Read-only catch-up projection for a reporting surface such as
-# fm-bearings-snapshot.sh: one tab-separated line
-# `<open-blocker-count><TAB><first-retention-reason>`, and exit 1 when no gate
-# is open. The reason field is empty when open blockers alone hold the gate.
-catchup_summary() {
-  local count reason
-  [ -e "$GATE" ] || return 1
-  count=$(grep -c "^blocker$(printf '\t')" "$GATE" 2>/dev/null || true)
-  case "$count" in ''|*[!0-9]*) count=0 ;; esac
-  reason=$(gate_retention_reasons "$GATE" | head -1)
-  printf '%s\t%s\n' "$count" "$reason"
-}
-
 return_guard() {
   local reasons
   if [ -e "$STATE/.afk" ] || fm_afk_contract_present "$STATE"; then

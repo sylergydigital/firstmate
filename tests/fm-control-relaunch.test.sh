@@ -193,15 +193,21 @@ case "${1:-}" in
   status)
     printf '%s\n' '{"client":{"protocol":14,"version":"0.7.3"},"server":{"running":true}}'
     ;;
+  session)
+    printf '%s\n' '{"sessions":[{"name":"fmtest","running":true,"socket_path":"'"$D"'/fmtest.sock"}]}'
+    ;;
+  terminal)
+    printf '%s\n' '{"result":{"reason":"no_foreground_client"}}'
+    ;;
   workspace)
     case "${2:-}" in
       list)
         if [ -n "${FM_FAKE_MISSING_WS:-}" ]; then
           printf '%s\n' '{"result":{"workspaces":[]}}'
         elif [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
-          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"other"}]}}'
+          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate","focused":true,"active_tab_id":"w1:t-cap"},{"workspace_id":"w2","label":"other"}]}}'
         else
-          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate"}]}}'
+          printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate","focused":true,"active_tab_id":"w1:t-cap"}]}}'
         fi
         ;;
       *) exit 1 ;;
@@ -213,10 +219,10 @@ case "${1:-}" in
         ws=${4:-w1}
         if [ "$ws" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
           printf '%s\n' '{"result":{"tabs":[{"tab_id":"w2:t-dup","label":"fm-rh1","workspace_id":"w2"}]}}'
-        elif [ -e "$D/herdr-created" ]; then
-          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}'
+        elif [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
+          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-cap","label":"captain","workspace_id":"w1","focused":true},{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}'
         else
-          printf '%s\n' '{"result":{"tabs":[]}}'
+          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-cap","label":"captain","workspace_id":"w1","focused":true}]}}'
         fi
         ;;
       create)
@@ -237,7 +243,11 @@ case "${1:-}" in
             printf '%s\n' '{"result":{"pane":{"pane_id":"w2:p-dup","foreground_cwd":"/wrong"}}}'
             ;;
           *p-new)
-            printf '%s\n' '{"result":{"pane":{"pane_id":"w1:p-new","foreground_cwd":"'"$FM_FAKE_WT"'"}}}'
+            if [ -e "$D/herdr-closed" ]; then
+              printf '%s\n' '{"error":{"code":"pane_not_found"}}'
+            else
+              printf '%s\n' '{"result":{"pane":{"pane_id":"w1:p-new","tab_id":"w1:t-new","workspace_id":"w1","foreground_cwd":"'"$FM_FAKE_WT"'"}}}'
+            fi
             ;;
           *) printf '%s\n' '{"error":{"code":"pane_not_found"}}' ;;
         esac
@@ -253,6 +263,7 @@ case "${1:-}" in
         pane=${4:-}
         printf '%s\n' '{"result":{"type":"pane_process_info","process_info":{"pane_id":"'"$pane"'","shell_pid":4242,"foreground_process_group_id":4243,"foreground_processes":[{"pid":4243,"name":"claude","argv0":"claude","argv":["claude"],"cmdline":"claude"}]}}}'
         ;;
+      close) printf '%s\n' "${3:-}" > "$D/herdr-closed" ;;
       run|send-text|send-keys) : ;;
       *) exit 1 ;;
     esac
@@ -1821,6 +1832,7 @@ test_control_relaunch_recreates_a_missing_herdr_endpoint() {
     || fail "missing-endpoint recovery must publish the replacement pane"
   assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "pane run w1:p-old /exit" \
     "missing-endpoint recovery must not send an exit command to a gone pane"
+  assert_absent "$dir/fake/herdr-closed" "a delivered recovery must keep the pane its record now names"
   pass "fm-control relaunch: a gone Herdr pane is recreated in place without a second worktree"
 }
 
@@ -1920,7 +1932,9 @@ test_missing_herdr_recovery_restores_the_journal_when_publication_fails() {
     || fail "an unpublished recovery must keep the prior durable endpoint"
   [ -z "$(find "$dir/home/state" -name '*herdr-relaunch-journal-prior*' -print -quit)" ] \
     || fail "the journal restore must not leave its scratch copy behind"
-  pass "fm-spawn --relaunch: an unpublished missing-Herdr recovery restores the presentation journal"
+  [ "$(cat "$dir/fake/herdr-closed" 2>/dev/null)" = w1:p-new ] \
+    || fail "an unpublished recovery must close the replacement pane it minted"
+  pass "fm-spawn --relaunch: an unpublished missing-Herdr recovery restores the presentation journal and closes its pane"
 }
 
 test_spawn_relaunch_refuses_a_live_agent() {
@@ -2246,19 +2260,20 @@ case "${1:-} ${2:-}" in
     esac
     exit 0 ;;
   'workspace list')
-    printf '{"result":{"workspaces":[]}}\n'
+    # The recorded workspace survives; only its pane may not.
+    printf '{"result":{"workspaces":[{"workspace_id":"ws1"}]}}\n'
     exit 0 ;;
   'workspace create')
-    if [ -f "$D/herdr-workspace-create-fails" ]; then
-      echo 'error: workspace create failed' >&2
-      exit 1
-    fi
     printf '{"result":{"workspace":{"workspace_id":"wsnew"},"tab":{"tab_id":"seedtab"}}}\n'
     exit 0 ;;
   'tab list')
     printf '{"result":{"tabs":[]}}\n'
     exit 0 ;;
   'tab create')
+    if [ -f "$D/herdr-tab-create-fails" ]; then
+      echo 'error: tab create failed' >&2
+      exit 1
+    fi
     # The re-created endpoint. Recording it lets a case prove the pane the
     # record ends up naming is the one this call minted.
     printf '%s\n' "$*" >> "$D/herdr-created-tabs"
@@ -2444,16 +2459,19 @@ test_herdr_rebind_stays_in_the_recorded_session() {
   log=$(cat "$dir/fake/herdr-log")
   expect_code 0 "$rc" "a herdr pane that did not survive its server should be rebound"$'\n'"$out"$'\n'"$log"
 
-  assert_contains "$log" "tab create" "a destroyed pane must be replaced by a fresh tab"
+  assert_contains "$log" "tab create --workspace ws1 " "a destroyed pane must be replaced by a fresh tab in the recorded workspace"
+  assert_not_contains "$log" "workspace create" "a rebind must never create a workspace of its own"
   [ -z "$(grep -v -- '--session fmlab$' <<<"$log" | grep -v '^status --json$' || true)" ] \
     || fail "the rebind used a herdr session the record does not name: $log"
   [ "$(meta_field "$dir" rl73 herdr_session)" = fmlab ] \
     || fail "the rebound record left its recorded herdr session, got $(meta_field "$dir" rl73 herdr_session)"
+  [ "$(meta_field "$dir" rl73 herdr_workspace_id)" = ws1 ] \
+    || fail "the rebound record left its recorded herdr workspace, got $(meta_field "$dir" rl73 herdr_workspace_id)"
   [ "$(meta_field "$dir" rl73 window)" = 'fmlab:%9' ] \
     || fail "the rebound endpoint should be the new pane in the recorded session, got $(meta_field "$dir" rl73 window)"
   [ "$(meta_field "$dir" rl73 herdr_pane_id)" = '%9' ] \
     || fail "the rebound record should name the pane the reclaim minted, got $(meta_field "$dir" rl73 herdr_pane_id)"
-  pass "reclaim: a herdr rebind is created in the session the record names, never the ambient one"
+  pass "reclaim: a herdr rebind is created in the session and workspace the record names, never the ambient ones"
 }
 
 test_herdr_reclaim_refuses_an_agent_that_came_back() {
@@ -2533,24 +2551,23 @@ test_herdr_rebind_failure_from_a_plain_shell_names_the_real_cause() {
   local dir out rc
   # No HERDR_* env at all, which is how an operator reclaims from ssh or cron.
   # The adapter's ambient session then reads `default` while the record names
-  # `fmlab`, but the cross-session launcher guard was never consulted - this
-  # seat claims no launcher pane, so placement fell back to the recorded
-  # session's labeled container and the container failed for its own reason.
+  # `fmlab`, so a refusal must name the recorded target the rebind addressed.
   herdr_case_or_skip gone-herdr-plain rl77 fmlab '%none' || {
     echo "skip - herdr reclaim needs jq (the herdr adapter parses JSON with it)"
     return 0
   }
   dir=$HERDR_CASE_DIR
-  : > "$dir/fake/herdr-workspace-create-fails"
+  : > "$dir/fake/herdr-tab-create-fails"
 
   out=$(run_spawn "$dir" rl77 --relaunch --harness claude); rc=$?
-  expect_code 1 "$rc" "a container that cannot be ensured must refuse"$'\n'"$out"
-  assert_contains "$out" "fmlab" "the refusal should name the session the reclaim was targeting"
-  assert_not_contains "$out" "this seat is running in herdr session" \
-    "a seat with no launcher pane never hit the cross-session guard, so the refusal must not blame one"
-  assert_not_contains "$out" "a reclaim never moves a task to another session" \
-    "the operator must not be sent to re-run from another seat when that would not help"
-  pass "reclaim: a rebind refused from a plain shell reports the real cause, not a fabricated session mismatch"
+  expect_code 1 "$rc" "a replacement tab that cannot be created must refuse"$'\n'"$out"
+  assert_contains "$out" "recorded herdr workspace 'ws1' (session 'fmlab')" \
+    "the refusal should name the recorded session and workspace the reclaim was targeting"
+  assert_not_contains "$out" "'default'" \
+    "a plain shell's ambient session was never the reclaim's target"
+  [ "$(meta_field "$dir" rl77 window)" = 'fmlab:%7' ] \
+    || fail "a refused rebind rewrote the record's endpoint, got $(meta_field "$dir" rl77 window)"
+  pass "reclaim: a rebind refused from a plain shell names the recorded target, not the ambient session"
 }
 
 test_herdr_reclaim_of_a_secondmate_names_its_own_owner() {
