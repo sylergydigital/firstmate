@@ -1,0 +1,228 @@
+
+===== setup =====
+firstmate checkout: /home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M444X80HCXZVWGN2PD2EFMMB (90599d1)
+herdr: herdr 0.9.0; treehouse: v2.1.0
+lab session: fm-lab-reclaim-50392-12195   scratch: /tmp/fm-reclaim-live.M8dBDm   treehouse pool root: /tmp/fm-reclaim-live.M8dBDm/th/.treehouse
+anchor task spawned flat; home workspace 'firstmate' = w1
+
+===== A: flat task, pane destroyed, recorded workspace survives -> recreated in the recorded workspace =====
+-- rcflat.meta endpoint: window=fm-lab-reclaim-50392-12195:w1:p3 ws=w1 tab=w1:t3 pane=w1:p3 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/2/project
+closed pane w1:p3; workspace w1 still present: yes
+$ fm-spawn.sh rcflat --relaunch --harness "sh -c 'while :; do sleep 60; done'"  -> rc=0
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcflat/launch-brief.md records no ship branch; defaulting to legacy branch fm/rcflat
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcflat/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned rcflat harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-reclaim-50392-12195:w1:p4 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/2/project
+-- rcflat.meta endpoint: window=fm-lab-reclaim-50392-12195:w1:p4 ws=w1 tab=w1:t4 pane=w1:p4 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/2/project
+-- herdr layout:
+   workspace w1 'firstmate'
+      tab w1:t2	fm-anchor
+      tab w1:t4	fm-rcflat
+PASS: A relaunch succeeds (rc=0)
+PASS: A record keeps recorded workspace w1
+PASS: A record rebinds to a new pane
+PASS: A new pane really exists in Herdr
+PASS: A worktree reused (no second copy)
+PASS: A exactly one fm-rcflat tab exists
+PASS: A no workspace created
+PASS: A replacement shell sits in the recorded worktree
+
+===== C: adversarial - a duplicate fm-<id> tab lives in another workspace -> refuse =====
+closed rcdup pane w1:p5; planted a stray fm-rcdup tab in workspace w2
+$ fm-spawn.sh rcdup --relaunch -> rc=1
+error: another Herdr task tab named fm-rcdup exists in workspace 'w2'; refusing to create a second task copy
+PASS: C relaunch refuses (rc!=0)
+PASS: C refusal names the competing tab/workspace
+PASS: C no tab created in recorded workspace
+PASS: C no workspace created
+PASS: C record still names the old pane
+
+===== D: projected task (presentation on), pane + own projection gone -> projection recreated =====
+-- rcproj.meta endpoint: window=fm-lab-reclaim-50392-12195:w3:p2 ws=w3 tab=w3:t2 pane=w3:p2 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/3/project
+-- rcproj presentation journal: version=2 ws=w3 tab=w3:t2 pane=w3:p2 parent=w1 projection_id=UWMQY7G0JgPYhEpTj-metQ
+PASS: D fresh spawn was projected into its own workspace
+projection workspace w3 present after pane loss: no
+$ fm-spawn.sh rcproj --relaunch -> rc=0
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcproj/launch-brief.md records no ship branch; defaulting to legacy branch fm/rcproj
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcproj/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned rcproj harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-reclaim-50392-12195:w4:p2 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/3/project
+-- rcproj.meta endpoint: window=fm-lab-reclaim-50392-12195:w4:p2 ws=w4 tab=w4:t2 pane=w4:p2 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/3/project
+-- rcproj presentation journal: version=2 ws=w4 tab=w4:t2 pane=w4:p2 parent=w1 projection_id=8eVdi-lpXXYBVqg77aNoaw
+-- herdr layout:
+   workspace w1 'firstmate'
+      tab w1:t2	fm-anchor
+      tab w1:t4	fm-rcflat
+   workspace w4 '└ rcproj · p:8eVdi-lpXXYBVqg77aNoaw'
+      tab w4:t2	fm-rcproj
+PASS: D relaunch succeeds (rc=0)
+PASS: D record names a new projection workspace
+PASS: D new projection workspace exists in Herdr
+PASS: D new projection labelled for rcproj
+PASS: D journal rebound: v2, new ws/pane, same parent, new token
+PASS: D did not fall back into the shared parent workspace
+PASS: D worktree reused
+PASS: D exactly one fm-rcproj tab
+PASS: D no journal scratch copy left
+
+===== E: projected task, presentation switched off, pane + projection gone -> flat in recorded parent =====
+-- rcoff.meta endpoint: window=fm-lab-reclaim-50392-12195:w5:p2 ws=w5 tab=w5:t2 pane=w5:p2 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/4/project
+-- rcoff presentation journal: version=2 ws=w5 tab=w5:t2 pane=w5:p2 parent=w1 projection_id=wL9YQrTOOZmcyfYM0LoD5g
+$ fm-spawn.sh rcoff --relaunch (presentation off) -> rc=0
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcoff/launch-brief.md records no ship branch; defaulting to legacy branch fm/rcoff
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcoff/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned rcoff harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-reclaim-50392-12195:w1:p6 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/4/project
+-- rcoff.meta endpoint: window=fm-lab-reclaim-50392-12195:w1:p6 ws=w1 tab=w1:t6 pane=w1:p6 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/4/project
+-- rcoff presentation journal: (absent)
+-- herdr layout:
+   workspace w1 'firstmate'
+      tab w1:t2	fm-anchor
+      tab w1:t4	fm-rcflat
+      tab w1:t6	fm-rcoff
+   workspace w4 '└ rcproj · p:8eVdi-lpXXYBVqg77aNoaw'
+      tab w4:t2	fm-rcproj
+PASS: E relaunch succeeds (rc=0)
+PASS: E record lands flat in recorded parent w1
+PASS: E fm-rcoff tab is in the parent workspace
+PASS: E no projection workspace created
+PASS: E stale projection journal retired
+PASS: E worktree reused
+PASS: E same Herdr session
+
+===== F: adversarial - drifted presentation journal -> refuse, journal untouched =====
+$ fm-spawn.sh rcdrift --relaunch -> rc=1
+error: task rcdrift's Herdr recovery journal does not match its recorded missing endpoint; refusing to recreate it
+PASS: F relaunch refuses (rc!=0)
+PASS: F refusal names the journal mismatch
+PASS: F journal byte-identical
+PASS: F no workspace created
+PASS: F no fm-rcdrift tab created
+
+===== G: abort after minting (record publication fails) -> journal restored, minted pane closed =====
+closed rcab pane w7:p2; its projection w7 kept alive by a sibling tab: yes
+-- rcab presentation journal: version=2 ws=w7 tab=w7:t2 pane=w7:p2 parent=w1 projection_id=MvYCfoC0W7nSwkGzNwSa1g
+$ fm-spawn.sh rcab --relaunch (record publication forced to fail) -> rc=1
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcab/launch-brief.md records no ship branch; defaulting to legacy branch fm/rcab
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcab/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+error: replacement task record for rcab could not be published (task record publication failed at /tmp/fm-reclaim-live.M8dBDm/home/state/rcab.meta)
+-- rcab presentation journal: version=2 ws=w7 tab=w7:t2 pane=w7:p2 parent=w1 projection_id=MvYCfoC0W7nSwkGzNwSa1g
+-- herdr layout:
+   workspace w1 'firstmate'
+      tab w1:t2	fm-anchor
+      tab w1:t4	fm-rcflat
+      tab w1:t6	fm-rcoff
+   workspace w4 '└ rcproj · p:8eVdi-lpXXYBVqg77aNoaw'
+      tab w4:t2	fm-rcproj
+   workspace w7 '└ rcab · p:MvYCfoC0W7nSwkGzNwSa1g'
+      tab w7:t3	keepalive
+PASS: G relaunch fails (rc!=0)
+PASS: G journal restored byte-identical
+PASS: G record byte-identical (old endpoint kept)
+PASS: G minted replacement tab/pane cleaned up
+PASS: G no journal scratch copy left
+
+===== G2: same task, no fault -> recreated inside its surviving recorded projection, journal advanced =====
+$ fm-spawn.sh rcab --relaunch -> rc=0
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcab/launch-brief.md records no ship branch; defaulting to legacy branch fm/rcab
+warning: /tmp/fm-reclaim-live.M8dBDm/home/data/rcab/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned rcab harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-reclaim-50392-12195:w7:p5 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/5/project
+-- rcab.meta endpoint: window=fm-lab-reclaim-50392-12195:w7:p5 ws=w7 tab=w7:t5 pane=w7:p5 worktree=/tmp/fm-reclaim-live.M8dBDm/th/.treehouse/project-968a16/5/project
+-- rcab presentation journal: version=2 ws=w7 tab=w7:t5 pane=w7:p5 parent=w1 projection_id=MvYCfoC0W7nSwkGzNwSa1g
+PASS: G2 relaunch succeeds
+PASS: G2 stays in recorded projection w7
+PASS: G2 journal advanced to the replacement tab/pane
+
+===== B: adversarial - recorded flat workspace destroyed -> refuse; gone projection whose parent is gone -> refuse =====
+closed home workspace w1 (flat tasks' recorded workspace) and rcproj's projection w4
+-- herdr layout:
+   workspace w7 '└ rcab · p:MvYCfoC0W7nSwkGzNwSa1g'
+      tab w7:t3	keepalive
+      tab w7:t5	fm-rcab
+$ fm-spawn.sh rcflat --relaunch -> rc=1
+error: recorded Herdr workspace 'w1' for task rcflat is missing; refusing to recreate its endpoint
+PASS: B flat relaunch refuses (rc!=0)
+PASS: B refusal names the missing recorded workspace
+PASS: B no workspace created
+PASS: B no fm-rcflat tab created
+PASS: B record byte-identical
+$ fm-spawn.sh rcproj --relaunch -> rc=1
+error: task rcproj's projection workspace 'w4' and its recorded parent workspace 'w1' are both gone; refusing to recreate its endpoint
+PASS: B projected-without-parent relaunch refuses
+PASS: B refusal names both projection and parent gone
+PASS: B still no workspace created
+
+===== B2: adversarial - a NEW workspace labelled 'firstmate' replaces the destroyed one -> still refuse, never adopt it =====
+created impostor workspace w8 labelled 'firstmate' (recorded parent/flat workspace was w1)
+-- herdr layout:
+   workspace w7 '└ rcab · p:MvYCfoC0W7nSwkGzNwSa1g'
+      tab w7:t3	keepalive
+      tab w7:t5	fm-rcab
+   workspace w8 'firstmate'
+      tab w8:t1	1
+$ fm-spawn.sh rcflat --relaunch -> rc=1
+error: recorded Herdr workspace 'w1' for task rcflat is missing; refusing to recreate its endpoint
+PASS: B2 flat relaunch still refuses
+PASS: B2 no fm-rcflat tab landed in the impostor
+$ fm-spawn.sh rcproj --relaunch -> rc=1
+error: task rcproj's projection workspace 'w4' and its recorded parent workspace 'w1' are both gone; refusing to recreate its endpoint
+PASS: B2 projected relaunch still refuses (parent id must match, not just label)
+PASS: B2 no fm-rcproj tab landed in the impostor
+PASS: B2 no projection workspace created
+
+===== summary =====
+PASS A relaunch succeeds (rc=0)
+PASS A record keeps recorded workspace w1
+PASS A record rebinds to a new pane
+PASS A new pane really exists in Herdr
+PASS A worktree reused (no second copy)
+PASS A exactly one fm-rcflat tab exists
+PASS A no workspace created
+PASS A replacement shell sits in the recorded worktree
+PASS C relaunch refuses (rc!=0)
+PASS C refusal names the competing tab/workspace
+PASS C no tab created in recorded workspace
+PASS C no workspace created
+PASS C record still names the old pane
+PASS D fresh spawn was projected into its own workspace
+PASS D relaunch succeeds (rc=0)
+PASS D record names a new projection workspace
+PASS D new projection workspace exists in Herdr
+PASS D new projection labelled for rcproj
+PASS D journal rebound: v2, new ws/pane, same parent, new token
+PASS D did not fall back into the shared parent workspace
+PASS D worktree reused
+PASS D exactly one fm-rcproj tab
+PASS D no journal scratch copy left
+PASS E relaunch succeeds (rc=0)
+PASS E record lands flat in recorded parent w1
+PASS E fm-rcoff tab is in the parent workspace
+PASS E no projection workspace created
+PASS E stale projection journal retired
+PASS E worktree reused
+PASS E same Herdr session
+PASS F relaunch refuses (rc!=0)
+PASS F refusal names the journal mismatch
+PASS F journal byte-identical
+PASS F no workspace created
+PASS F no fm-rcdrift tab created
+PASS G relaunch fails (rc!=0)
+PASS G journal restored byte-identical
+PASS G record byte-identical (old endpoint kept)
+PASS G minted replacement tab/pane cleaned up
+PASS G no journal scratch copy left
+PASS G2 relaunch succeeds
+PASS G2 stays in recorded projection w7
+PASS G2 journal advanced to the replacement tab/pane
+PASS B flat relaunch refuses (rc!=0)
+PASS B refusal names the missing recorded workspace
+PASS B no workspace created
+PASS B no fm-rcflat tab created
+PASS B record byte-identical
+PASS B projected-without-parent relaunch refuses
+PASS B refusal names both projection and parent gone
+PASS B still no workspace created
+PASS B2 flat relaunch still refuses
+PASS B2 no fm-rcflat tab landed in the impostor
+PASS B2 projected relaunch still refuses (parent id must match, not just label)
+PASS B2 no fm-rcproj tab landed in the impostor
+PASS B2 no projection workspace created
+passes=56 fails=0
+# lab session fm-lab-reclaim-50392-12195 torn down

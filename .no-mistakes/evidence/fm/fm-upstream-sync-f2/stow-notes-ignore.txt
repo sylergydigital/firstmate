@@ -1,0 +1,5 @@
+$ git check-ignore -v .stow-notes.md .stow-archive.md bin/.stow-notes.md
+.gitignore:16:.stow-notes.md	.stow-notes.md
+.gitignore:17:.stow-archive.md	.stow-archive.md
+.gitignore:16:.stow-notes.md	bin/.stow-notes.md
+exit=0

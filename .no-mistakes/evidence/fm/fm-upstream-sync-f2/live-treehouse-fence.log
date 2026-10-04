@@ -1,0 +1,71 @@
+
+===== setup =====
+firstmate checkout: /home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M444X80HCXZVWGN2PD2EFMMB (90599d1); herdr 0.9.0; treehouse v2.1.0
+clone A: /tmp/fm-fence-live.CsVJGb/homeA/projects/widget
+clone B: /tmp/fm-fence-live.CsVJGb/homeB/projects/widget  (same dir name, same origin URL -> one shared pool)
+
+===== seed: clone A leaves a FREE slot in the shared pool =====
+clone A slot: /tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget  (git common dir /tmp/fm-fence-live.CsVJGb/homeA/projects/widget/.git)
+-- pool (treehouse status --json, seen from homeB):
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+   slot 1  available  holder=  path=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget  owner-clone=homeA/projects/widget/.git
+
+===== hazard (no fence): plain treehouse get from clone B hands out clone A's worktree =====
+$ (cd clone-B && treehouse get --lease) -> /tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget  (git common dir /tmp/fm-fence-live.CsVJGb/homeA/projects/widget/.git)
+PASS: hazard reproduced: clone B's raw get returns a clone-A worktree
+
+===== spawn fence1 from clone B's home (real fm-spawn, Herdr backend) =====
+$ FM_HOME=homeB fm-spawn.sh fence1 <clone B> "sh -c 'while :; do sleep 60; done'" --backend herdr -> rc=0
+warning: /tmp/fm-fence-live.CsVJGb/homeB/data/fence1/launch-brief.md records no ship branch; defaulting to legacy branch fm/fence1
+warning: /tmp/fm-fence-live.CsVJGb/homeB/data/fence1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned fence1 harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-fence-3399956-23967:w1:p2 worktree=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/2/widget
+fence1 worktree: /tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/2/widget (git common dir /tmp/fm-fence-live.CsVJGb/homeB/projects/widget/.git)
+-- pool (treehouse status --json, seen from homeB):
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+   slot 1  available  holder=  path=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget  owner-clone=homeA/projects/widget/.git
+   slot 2  in-use  holder=  path=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/2/widget  owner-clone=homeB/projects/widget/.git
+PASS: spawn succeeds
+PASS: fence1 landed in a clone-B worktree
+PASS: fence1 did not take clone A's slot
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+PASS: fenced clone-A slot handed back (available again)
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+PASS: no lease left under the spawn fence holder
+
+===== spawn fence2 from clone A's home: its own slot is free, so it takes it =====
+$ FM_HOME=homeA fm-spawn.sh fence2 <clone A> ... -> rc=0
+warning: /tmp/fm-fence-live.CsVJGb/homeA/data/fence2/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned fence2 harness=sh kind=ship mode=no-mistakes yolo=off window=fm-lab-fence-3399956-23967:w1:p3 worktree=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget
+-- pool (treehouse status --json, seen from homeA):
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+   slot 1  in-use  holder=  path=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/1/widget  owner-clone=homeA/projects/widget/.git
+   slot 2  in-use  holder=  path=/tmp/fm-fence-live.CsVJGb/th/.treehouse/widget-adb88c/2/widget  owner-clone=homeB/projects/widget/.git
+PASS: fence2 spawn succeeds
+PASS: fence2 landed in clone A's own free slot
+A new version of treehouse is available: v2.1.0 → v3.1.2
+Run "treehouse update" to update
+
+PASS: no lease left under the fence2 holder
+
+===== summary =====
+PASS hazard reproduced: clone B's raw get returns a clone-A worktree
+PASS spawn succeeds
+PASS fence1 landed in a clone-B worktree
+PASS fence1 did not take clone A's slot
+PASS fenced clone-A slot handed back (available again)
+PASS no lease left under the spawn fence holder
+PASS fence2 spawn succeeds
+PASS fence2 landed in clone A's own free slot
+PASS no lease left under the fence2 holder
+passes=9 fails=0
+# lab session fm-lab-fence-3399956-23967 torn down

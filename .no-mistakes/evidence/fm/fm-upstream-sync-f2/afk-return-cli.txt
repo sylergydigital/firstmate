@@ -1,0 +1,13 @@
+$ FM_HOME=<scratch> bin/fm-afk-return.sh guard   (no away mode, no gate)
+exit=0
+$ FM_HOME=<scratch> bin/fm-afk-return.sh catchup-summary   (no gate)
+exit=1
+$ (gate with 2 open blockers + 1 lifecycle retention reason)
+$ FM_HOME=<scratch> bin/fm-afk-return.sh catchup-summary
+2^Ilanded work owes cleanup$
+exit=0
+$ FM_HOME=<scratch> bin/fm-afk-return.sh guard
+fm-afk-return: return catch-up is pending; remediate or durably reclassify every listed blocker, then run bin/fm-afk-return.sh check
+firstmate-actionable blocker: t1 [key=key=a] 
+firstmate-actionable blocker: t2 [key=key=b] 
+exit=4
