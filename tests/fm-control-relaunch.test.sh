@@ -235,19 +235,16 @@ case "${1:-}" in
     case "${2:-}" in
       list)
         ws=${4:-w1}
-        captain='{"tab_id":"'"$ws"':t-cap","label":"captain","workspace_id":"'"$ws"'","focused":true}'
+        created=$(cat "$D/herdr-created" 2>/dev/null || true)
+        [ ! -e "$D/herdr-closed" ] || created=
+        tabs='{"tab_id":"'"$ws"':t-cap","label":"captain","workspace_id":"'"$ws"'","focused":true}'
+        [ "$ws" != w9 ] || tabs=
+        [ "$created" != "$ws" ] \
+          || tabs="${tabs:+$tabs,}"'{"tab_id":"'"$ws"':t-new","label":"fm-rh1","workspace_id":"'"$ws"'"}'
         if [ "$ws" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
           printf '%s\n' '{"result":{"tabs":[{"tab_id":"w2:t-dup","label":"fm-rh1","workspace_id":"w2"}]}}'
-        elif [ "$ws" = w9 ]; then
-          if [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
-            printf '%s\n' '{"result":{"tabs":[{"tab_id":"w9:t-new","label":"fm-rh1","workspace_id":"w9"}]}}'
-          else
-            printf '%s\n' '{"result":{"tabs":[]}}'
-          fi
-        elif [ "$ws" = w1 ] && [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
-          printf '{"result":{"tabs":[%s,{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}\n' "$captain"
         else
-          printf '{"result":{"tabs":[%s]}}\n' "$captain"
+          printf '{"result":{"tabs":[%s]}}\n' "$tabs"
         fi
         ;;
       create)
@@ -256,7 +253,7 @@ case "${1:-}" in
           [ "$prev" != --workspace ] || ws=$arg
           prev=$arg
         done
-        : > "$D/herdr-created"
+        printf '%s' "$ws" > "$D/herdr-created"
         printf '{"result":{"tab":{"tab_id":"%s:t-new"},"root_pane":{"pane_id":"%s:p-new"}}}\n' "$ws" "$ws"
         ;;
       close) : ;;
@@ -1928,6 +1925,8 @@ test_control_relaunch_recreates_a_gone_herdr_projection() {
   make_herdr_missing_stub "$dir"
   write_herdr_bound_journal "$dir" w1 w1:t-old w1:p-old w0
   journal="$dir/home/state/rh1.herdr-presentation"
+  mkdir -p "$dir/home/config"
+  printf 'on\n' > "$dir/home/config/herdr-presentation-spaces"
   export FM_FAKE_WT="$dir/wt" FM_FAKE_PROJECTION_GONE=1
   out=$(run_control "$dir" rh1 relaunch --note "recover the vanished projected worker"); rc=$?
   unset FM_FAKE_WT FM_FAKE_PROJECTION_GONE
@@ -1955,6 +1954,41 @@ test_control_relaunch_recreates_a_gone_herdr_projection() {
   [ -z "$(find "$dir/home/state" -name '*herdr-relaunch-journal-prior*' -print -quit)" ] \
     || fail "a published reclaim must not leave its journal scratch copy behind"
   pass "fm-control relaunch: a task whose own Herdr projection vanished is reclaimed into a recreated projection"
+}
+
+test_control_relaunch_places_a_gone_projection_flat_when_presentation_is_off() {
+  local dir out rc calls setting
+  # An explicit `off`, and an unconfigured home on this Herdr release, which is
+  # below the presentation version floor: both gate projection off for a fresh
+  # spawn, so the reclaim lands flat in the recorded parent workspace.
+  for setting in off unconfigured; do
+    dir=$(new_case "herdr-projection-$setting" rh1)
+    add_herdr_missing_task "$dir" rh1
+    make_herdr_missing_stub "$dir"
+    write_herdr_bound_journal "$dir" w1 w1:t-old w1:p-old w0
+    if [ "$setting" = off ]; then
+      mkdir -p "$dir/home/config"
+      printf 'off\n' > "$dir/home/config/herdr-presentation-spaces"
+    fi
+    export FM_FAKE_WT="$dir/wt" FM_FAKE_PROJECTION_GONE=1
+    out=$(run_control "$dir" rh1 relaunch --note "recover the vanished projected worker"); rc=$?
+    unset FM_FAKE_WT FM_FAKE_PROJECTION_GONE
+    calls=$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)
+    expect_code 0 "$rc" "a gone projection with presentation $setting should be reclaimed flat"$'\n'"$out"
+    assert_not_contains "$calls" "workspace create" \
+      "presentation $setting must not recreate a projection workspace"
+    assert_contains "$calls" "tab create --workspace w0 " \
+      "presentation $setting must place the tab in the projection's recorded parent workspace"
+    [ "$(meta_field "$dir" rh1 herdr_session)" = fmtest ] \
+      && [ "$(meta_field "$dir" rh1 herdr_workspace_id)" = w0 ] \
+      && [ "$(meta_field "$dir" rh1 herdr_pane_id)" = w0:p-new ] \
+      || fail "the republished record must name the flat tab in the recorded parent workspace (presentation $setting)"
+    assert_absent "$dir/home/state/rh1.herdr-presentation" \
+      "a flat reclaim must retire the stale projection binding (presentation $setting)"
+    [ -z "$(find "$dir/home/state" -name '*herdr-relaunch-journal-prior*' -print -quit)" ] \
+      || fail "a published reclaim must not leave its journal scratch copy behind (presentation $setting)"
+  done
+  pass "fm-control relaunch: a gone Herdr projection is reclaimed flat in its recorded parent when presentation is off"
 }
 
 test_spawn_relaunch_refuses_a_gone_projection_without_its_parent() {
@@ -2799,6 +2833,7 @@ test_control_relaunch_recreates_a_missing_herdr_endpoint
 test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate
 test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace
 test_control_relaunch_recreates_a_gone_herdr_projection
+test_control_relaunch_places_a_gone_projection_flat_when_presentation_is_off
 test_spawn_relaunch_refuses_a_gone_projection_without_its_parent
 test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab
 test_missing_herdr_recovery_restores_the_journal_when_publication_fails

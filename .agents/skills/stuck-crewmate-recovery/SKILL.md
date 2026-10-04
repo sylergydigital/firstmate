@@ -41,7 +41,7 @@ Do not sweep another home's endpoints or infer ownership from a matching window 
 Before relaunch, prove that no live agent still owns the recorded task and that the existing worktree remains available.
 Preserve its uncommitted changes and commits, keep the same task identity, and resume or relaunch the recorded harness in that existing worktree with the same brief plus a concise progress note.
 A HERDR endpoint that is not merely idle but destroyed - a pane removed in Herdr churn - is recovered by that same relaunch, which creates one fresh endpoint in the existing worktree and the recorded Herdr workspace and rebinds the task's record to it; nothing special is needed, and the worktree is untouched.
-When that workspace was the task's own one-task projection - Herdr's default layout - and it disappeared with the pane, the same relaunch recreates the projection.
+When that workspace was the task's own one-task projection - Herdr's default layout - and it disappeared with the pane, the same relaunch replaces it: a recreated projection, or with presentation now off, a flat tab in the projection's recorded parent workspace.
 Any other destroyed recorded workspace, or an `fm-<id>` tab in another workspace, refuses instead ([`docs/agent-control.md`](../../../docs/agent-control.md) "Reclaiming a task whose endpoint is gone").
 That relaunch proves the endpoint is destroyed before it rebinds, so a Herdr server that was merely stopped is adopted back rather than duplicated.
 On tmux there is no reclaim: a task record carries no socket identity for its endpoint, so a `missing` window cannot be told apart from one on a tmux server this seat cannot address, and both `exit` and `relaunch` refuse.

@@ -60,17 +60,20 @@
 #   the new incarnation. Two verdicts are agent-free: a `dead` endpoint is
 #   ADOPTED as-is, while an endpoint PROVEN gone is RE-CREATED in the recorded
 #   worktree and recorded Herdr workspace and the republished record rebinds
-#   the task to it. That proof is its own step, because a backend's `missing`
-#   also covers an endpoint that is merely unreachable from here - and it is
-#   only available on HERDR, which must still read the recorded pane as gone
-#   once that session's server is running again. A tmux `missing` always
-#   refuses: a task record carries no socket identity for its endpoint, so no
-#   read here can tell a destroyed window from one on a tmux server this process
-#   cannot address. An endpoint that turns out to have survived refuses too. The
-#   worktree is reused untouched either way; a rebind is a recovery, never a
-#   teardown. Only a crewmate or scout rebinds: a secondmate whose endpoint is
-#   gone is respawned by its own owner (`--secondmate`, driven by the
-#   session-start liveness sweep).
+#   the task to it. When that workspace was the task's own one-task projection
+#   and vanished with the pane, the replacement is instead a recreated
+#   projection, or with presentation now off, a flat tab in the projection's
+#   recorded parent workspace. The absence proof is its own step, because a
+#   backend's `missing` also covers an endpoint that is merely unreachable from
+#   here - and it is only available on HERDR, which must still read the
+#   recorded pane as gone once that session's server is running again. A tmux
+#   `missing` always refuses: a task record carries no socket identity for its
+#   endpoint, so no read here can tell a destroyed window from one on a tmux
+#   server this process cannot address. An endpoint that turns out to have
+#   survived refuses too. The worktree is reused untouched either way; a rebind
+#   is a recovery, never a teardown. Only a crewmate or scout rebinds: a
+#   secondmate whose endpoint is gone is respawned by its own owner
+#   (`--secondmate`, driven by the session-start liveness sweep).
 #   Every fresh ship/scout launch and replacement explicitly enters the recorded
 #   worktree immediately before trust setup and brief delivery, and a pre-launch
 #   cwd check refuses any endpoint that still reports another copy; a Herdr shell
@@ -3641,19 +3644,28 @@ if [ "$RELAUNCH" -eq 1 ]; then
     # that no other fm-<id> tab can own this task. The one exception is a
     # recorded workspace that was the task's own one-task projection, proven by
     # its exact version 2 presentation binding, and that disappeared with the
-    # pane: the projection itself is recreated beneath its recorded parent, so
-    # the task still never lands in a shared or flat workspace. Until the launch
+    # pane: its stale binding is retired and the task is placed as a fresh spawn
+    # would be under the current presentation gate - a recreated projection
+    # beneath the recorded parent, or flat in that recorded parent workspace -
+    # never in a shared workspace the record does not name. Until the launch
     # command is delivered the minted pane is abort-cleaned, and the
     # presentation journal is restored if the record is never republished.
     if [ "$HERDR_RELAUNCH_PROJECTION_GONE" = 1 ]; then
-      spawn_herdr_presentation_order_lock_acquire "$HERDR_SES" || {
-        echo "error: herdr presentation recovery could not acquire its session lock; refusing a concurrent reclaim of task $ID" >&2
-        exit 1
-      }
       rm -f "$HERDR_RELAUNCH_JOURNAL"
-      spawn_herdr_projection_create "$FM_HOME" "$WT" \
-        "$HERDR_RELAUNCH_PARENT_WORKSPACE_ID" "$HERDR_RELAUNCH_PARENT_LABEL" || exit 1
-    else
+      if fm_backend_herdr_presentation_enabled "$CONFIG" "$STATE" &&
+        { [ "${FM_BACKEND_HERDR_PRESENTATION_PREFERENCE:-default}" != default ] ||
+          fm_backend_herdr_presentation_default_supported "$STATE" "$HERDR_SES"; }; then
+        spawn_herdr_presentation_order_lock_acquire "$HERDR_SES" || {
+          echo "error: herdr presentation recovery could not acquire its session lock; refusing a concurrent reclaim of task $ID" >&2
+          exit 1
+        }
+        spawn_herdr_projection_create "$FM_HOME" "$WT" \
+          "$HERDR_RELAUNCH_PARENT_WORKSPACE_ID" "$HERDR_RELAUNCH_PARENT_LABEL" || exit 1
+      else
+        HERDR_WORKSPACE_ID=$HERDR_RELAUNCH_PARENT_WORKSPACE_ID
+      fi
+    fi
+    if [ "${HERDR_PROJECTED:-0}" -ne 1 ]; then
       HERDR_TASK_IDS=$(fm_backend_herdr_create_task "$HERDR_SES:$HERDR_WORKSPACE_ID" "$W" "$WT") || {
         echo "error: task $ID's endpoint could not be re-created in its recorded herdr workspace '$HERDR_WORKSPACE_ID' (session '$HERDR_SES'); see any refusal above for what failed" >&2
         exit 1
@@ -3669,7 +3681,7 @@ EOF
       HERDR_PROJECTION_ABORT_SESSION=$HERDR_SES
       HERDR_PROJECTION_ABORT_TASK_PANE=$HERDR_PANE_ID
       HERDR_PROJECTION_ABORT_SEEDED_PANE=
-      if [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
+      if [ "$HERDR_RELAUNCH_PROJECTION_GONE" != 1 ] && [ -n "$HERDR_RELAUNCH_JOURNAL_PRIOR" ]; then
         fm_backend_herdr_projection_journal_replace_endpoint \
           "$HERDR_RELAUNCH_JOURNAL" "$ID" "$HERDR_RELAUNCH_OLD_TAB_ID" "$HERDR_RELAUNCH_OLD_PANE_ID" \
           "$HERDR_TAB_ID" "$HERDR_PANE_ID" >/dev/null 2>&1 || {

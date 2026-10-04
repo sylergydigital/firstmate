@@ -60,11 +60,15 @@
 #              in that worktree, in the herdr session and workspace the record
 #              names, after proving that workspace still exists and that no
 #              other fm-<id> tab can own the task, and the task's record
-#              rebinds to it; that is how a task whose terminal was destroyed
-#              is reclaimed by the home that owns it, rather than being
-#              stranded with a parked approval nobody can answer. Reclaim is
-#              HERDR-ONLY for the reason `exit` gives above: a tmux `missing`
-#              cannot be proven absent from a task record, so it refuses.
+#              rebinds to it. When that workspace was the task's own one-task
+#              projection and vanished with the pane, the replacement is a
+#              recreated projection instead, or with presentation now off, a
+#              flat tab in the projection's recorded parent workspace. That is
+#              how a task whose terminal was destroyed is reclaimed by the home
+#              that owns it, rather than being stranded with a parked approval
+#              nobody can answer. Reclaim is HERDR-ONLY for the reason `exit`
+#              gives above: a tmux `missing` cannot be proven absent from a
+#              task record, so it refuses.
 #              An explicit `default` model or effort clears that
 #              axis for the replacement. With no explicit axis, a secondmate
 #              re-resolves its durable config/secondmate-harness pin (harness
@@ -84,9 +88,10 @@
 #              Records a durable checkpoint and that note, exits the old agent,
 #              then delegates the launch to its single owner,
 #              bin/fm-spawn.sh --relaunch. If a Herdr pane has disappeared, the
-#              replacement path recreates one in the recorded workspace only
-#              after proving the isolated copy exists and no agent can own the
-#              task. A failure before publication keeps the prior durable record
+#              replacement path recreates one in the recorded workspace, or in
+#              place of the task's own vanished projection as above, only after
+#              proving the isolated copy exists and no agent can own the task.
+#              A failure before publication keeps the prior durable record
 #              in place and reports the concrete state; it never leaves a
 #              half-transitioned task claiming to be running.
 #
