@@ -206,9 +206,27 @@ case "${1:-}" in
           printf '%s\n' '{"result":{"workspaces":[]}}'
         elif [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
           printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate","focused":true,"active_tab_id":"w1:t-cap"},{"workspace_id":"w2","label":"other"}]}}'
+        elif [ -n "${FM_FAKE_PROJECTION_GONE:-}" ]; then
+          # The recorded projection w1 vanished with its pane; its parent w0
+          # survives unless the case says otherwise, and a recreated
+          # projection appears as w9 directly beneath it.
+          spaces='{"workspace_id":"w0","label":"firstmate","focused":true,"active_tab_id":"w0:t-cap"}'
+          [ -z "${FM_FAKE_PARENT_GONE:-}" ] || spaces=
+          if [ -e "$D/proj-label" ] && [ ! -e "$D/herdr-closed" ]; then
+            spaces="${spaces:+$spaces,}$(jq -cn --arg label "$(cat "$D/proj-label")" '{workspace_id:"w9",label:$label}')"
+          fi
+          printf '{"result":{"workspaces":[%s]}}\n' "$spaces"
         else
           printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"firstmate","focused":true,"active_tab_id":"w1:t-cap"}]}}'
         fi
+        ;;
+      create)
+        shift 2
+        while [ "$#" -gt 0 ]; do
+          [ "$1" != --label ] || printf '%s' "${2:-}" > "$D/proj-label"
+          shift
+        done
+        printf '%s\n' '{"result":{"workspace":{"workspace_id":"w9"},"tab":{"tab_id":"w9:t-seed"},"root_pane":{"pane_id":"w9:p-seed"}}}'
         ;;
       *) exit 1 ;;
     esac
@@ -217,17 +235,29 @@ case "${1:-}" in
     case "${2:-}" in
       list)
         ws=${4:-w1}
+        captain='{"tab_id":"'"$ws"':t-cap","label":"captain","workspace_id":"'"$ws"'","focused":true}'
         if [ "$ws" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
           printf '%s\n' '{"result":{"tabs":[{"tab_id":"w2:t-dup","label":"fm-rh1","workspace_id":"w2"}]}}'
-        elif [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
-          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-cap","label":"captain","workspace_id":"w1","focused":true},{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}'
+        elif [ "$ws" = w9 ]; then
+          if [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
+            printf '%s\n' '{"result":{"tabs":[{"tab_id":"w9:t-new","label":"fm-rh1","workspace_id":"w9"}]}}'
+          else
+            printf '%s\n' '{"result":{"tabs":[]}}'
+          fi
+        elif [ "$ws" = w1 ] && [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
+          printf '{"result":{"tabs":[%s,{"tab_id":"w1:t-new","label":"fm-rh1","workspace_id":"w1"}]}}\n' "$captain"
         else
-          printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t-cap","label":"captain","workspace_id":"w1","focused":true}]}}'
+          printf '{"result":{"tabs":[%s]}}\n' "$captain"
         fi
         ;;
       create)
+        ws=w1 prev=
+        for arg in "$@"; do
+          [ "$prev" != --workspace ] || ws=$arg
+          prev=$arg
+        done
         : > "$D/herdr-created"
-        printf '%s\n' '{"result":{"tab":{"tab_id":"w1:t-new"},"root_pane":{"pane_id":"w1:p-new"}}}'
+        printf '{"result":{"tab":{"tab_id":"%s:t-new"},"root_pane":{"pane_id":"%s:p-new"}}}\n' "$ws" "$ws"
         ;;
       close) : ;;
       *) exit 1 ;;
@@ -246,7 +276,8 @@ case "${1:-}" in
             if [ -e "$D/herdr-closed" ]; then
               printf '%s\n' '{"error":{"code":"pane_not_found"}}'
             else
-              printf '%s\n' '{"result":{"pane":{"pane_id":"w1:p-new","tab_id":"w1:t-new","workspace_id":"w1","foreground_cwd":"'"$FM_FAKE_WT"'"}}}'
+              printf '{"result":{"pane":{"pane_id":"%s","tab_id":"%s:t-new","workspace_id":"%s","foreground_cwd":"%s"}}}\n' \
+                "$pane" "${pane%%:*}" "${pane%%:*}" "$FM_FAKE_WT"
             fi
             ;;
           *) printf '%s\n' '{"error":{"code":"pane_not_found"}}' ;;
@@ -255,6 +286,8 @@ case "${1:-}" in
       list)
         if [ "${4:-}" = w2 ] && [ -n "${FM_FAKE_LIVE_DUP:-}" ]; then
           printf '%s\n' '{"result":{"panes":[{"pane_id":"w2:p-dup","tab_id":"w2:t-dup"}]}}'
+        elif [ "${4:-}" = w9 ] && [ -e "$D/herdr-created" ] && [ ! -e "$D/herdr-closed" ]; then
+          printf '%s\n' '{"result":{"panes":[{"pane_id":"w9:p-new","tab_id":"w9:t-new"}]}}'
         else
           printf '%s\n' '{"result":{"panes":[]}}'
         fi
@@ -330,6 +363,26 @@ EOF
   printf '%s' "$ses" > "$dir/fake/session-name"
   printf '%s' "$wt" > "$dir/fake/cwd"
   TASK_TMPS+=("/tmp/fm-$id")
+}
+
+# write_herdr_bound_journal <case-dir> <workspace> <tab> <pane> <parent>: the
+# version 2 presentation binding a projected rh1 task persists in its home.
+write_herdr_bound_journal() {
+  local dir=$1
+  {
+    echo "version=2"
+    echo "task_id=rh1"
+    echo "projection_id=p000000000000000000000"
+    echo "home=$dir/home"
+    echo "session=fmtest"
+    echo "workspace_id=$2"
+    echo "tab_id=$3"
+    echo "pane_id=$4"
+    echo "parent_workspace_id=$5"
+    echo "parent_label=firstmate"
+    echo "workspace_label=└ rh1 · p:p000000000000000000000"
+    echo "task_label=fm-rh1"
+  } > "$dir/home/state/rh1.herdr-presentation"
 }
 
 add_herdr_missing_task() {  # <case-dir> <id>
@@ -1863,7 +1916,68 @@ test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace() {
   assert_contains "$out" "recorded Herdr workspace" "the workspace refusal should be actionable"
   assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "tab create" \
     "a missing workspace must be refused before creating a replacement pane"
-  pass "fm-spawn --relaunch: a missing Herdr workspace blocks endpoint recreation"
+  assert_not_contains "$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)" "workspace create" \
+    "a missing flat workspace must never be replaced by a workspace of the reclaim's own"
+  pass "fm-spawn --relaunch: a missing flat Herdr workspace blocks endpoint recreation"
+}
+
+test_control_relaunch_recreates_a_gone_herdr_projection() {
+  local dir out rc calls journal
+  dir=$(new_case herdr-projection-gone rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  write_herdr_bound_journal "$dir" w1 w1:t-old w1:p-old w0
+  journal="$dir/home/state/rh1.herdr-presentation"
+  export FM_FAKE_WT="$dir/wt" FM_FAKE_PROJECTION_GONE=1
+  out=$(run_control "$dir" rh1 relaunch --note "recover the vanished projected worker"); rc=$?
+  unset FM_FAKE_WT FM_FAKE_PROJECTION_GONE
+  calls=$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)
+  expect_code 0 "$rc" "a task whose own projection vanished with its pane should be reclaimed"$'\n'"$out"
+  assert_contains "$calls" "workspace create" "the reclaim must recreate the task's own projection workspace"
+  assert_contains "$calls" "tab create --workspace w9 " "the replacement tab must land in the recreated projection"
+  assert_not_contains "$calls" "tab create --workspace w0 " \
+    "a projected reclaim must never fall back into the shared parent workspace"
+  [ "$(meta_field "$dir" rh1 herdr_session)" = fmtest ] \
+    || fail "a projected reclaim must stay in the recorded Herdr session"
+  [ "$(meta_field "$dir" rh1 herdr_workspace_id)" = w9 ] \
+    && [ "$(meta_field "$dir" rh1 herdr_pane_id)" = w9:p-new ] \
+    || fail "the republished record must name the recreated projection's pane"
+  [ "$(meta_field "$dir" rh1 worktree)" = "$dir/wt" ] \
+    || fail "a projected reclaim must reuse the existing isolated copy"
+  [ "$(sed -n 's/^version=//p' "$journal")" = 2 ] \
+    && [ "$(sed -n 's/^workspace_id=//p' "$journal")" = w9 ] \
+    && [ "$(sed -n 's/^tab_id=//p' "$journal")" = w9:t-new ] \
+    && [ "$(sed -n 's/^pane_id=//p' "$journal")" = w9:p-new ] \
+    && [ "$(sed -n 's/^parent_workspace_id=//p' "$journal")" = w0 ] \
+    || fail "the recreated projection must publish a fresh exact binding beneath its recorded parent"
+  [ "$(sed -n 's/^projection_id=//p' "$journal")" != p000000000000000000000 ] \
+    || fail "the recreated projection must carry a new token"
+  [ -z "$(find "$dir/home/state" -name '*herdr-relaunch-journal-prior*' -print -quit)" ] \
+    || fail "a published reclaim must not leave its journal scratch copy behind"
+  pass "fm-control relaunch: a task whose own Herdr projection vanished is reclaimed into a recreated projection"
+}
+
+test_spawn_relaunch_refuses_a_gone_projection_without_its_parent() {
+  local dir out rc calls journal
+  dir=$(new_case herdr-projection-orphan rh1)
+  add_herdr_missing_task "$dir" rh1
+  make_herdr_missing_stub "$dir"
+  write_herdr_bound_journal "$dir" w1 w1:t-old w1:p-old w0
+  journal="$dir/home/state/rh1.herdr-presentation"
+  export FM_FAKE_WT="$dir/wt" FM_FAKE_PROJECTION_GONE=1 FM_FAKE_PARENT_GONE=1
+  out=$(run_spawn "$dir" rh1 --relaunch --harness claude); rc=$?
+  unset FM_FAKE_WT FM_FAKE_PROJECTION_GONE FM_FAKE_PARENT_GONE
+  calls=$(cat "$dir/fake/herdr-calls" 2>/dev/null || true)
+  expect_code 1 "$rc" "a gone projection whose recorded parent is also gone must refuse"$'\n'"$out"
+  assert_contains "$out" "recorded parent workspace 'w0'" "the refusal should name the missing parent"
+  assert_not_contains "$calls" "workspace create" "a refused reclaim must not create a workspace"
+  assert_not_contains "$calls" "tab create" "a refused reclaim must not create a tab"
+  [ "$(sed -n 's/^workspace_id=//p' "$journal")" = w1 ] \
+    && [ "$(sed -n 's/^projection_id=//p' "$journal")" = p000000000000000000000 ] \
+    || fail "a refused reclaim must leave the presentation journal untouched"
+  [ "$(meta_field "$dir" rh1 herdr_pane_id)" = w1:p-old ] \
+    || fail "a refused reclaim must keep the prior durable endpoint"
+  pass "fm-spawn --relaunch: a gone Herdr projection without its recorded parent refuses before creating anything"
 }
 
 test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab() {
@@ -2684,6 +2798,8 @@ test_promotion_participates_in_the_lifecycle_lock_before_metadata_resolution
 test_control_relaunch_recreates_a_missing_herdr_endpoint
 test_spawn_relaunch_missing_herdr_refuses_a_live_duplicate
 test_spawn_relaunch_missing_herdr_refuses_a_missing_workspace
+test_control_relaunch_recreates_a_gone_herdr_projection
+test_spawn_relaunch_refuses_a_gone_projection_without_its_parent
 test_spawn_relaunch_missing_herdr_refuses_a_drifted_journal_tab
 test_missing_herdr_recovery_restores_the_journal_when_publication_fails
 test_spawn_relaunch_refuses_a_live_agent

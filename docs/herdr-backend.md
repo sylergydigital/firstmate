@@ -157,12 +157,14 @@ Rename it manually before expecting new tasks or recovery to use it.
 
 Recovery and list-live still scan the first workspace matching the home label, because they address panes they already recorded rather than choosing where new work goes.
 The one recovery that does place new work is the control plane's reclaim of a destroyed endpoint.
-It does not use this section's ordinary placement rules: it mints the replacement tab in the exact herdr session and workspace the task's record names ([`agent-control.md`](agent-control.md) "Reclaiming a task whose endpoint is gone").
+It does not use this section's ordinary placement rules: it mints the replacement tab in the exact herdr session and workspace the task's record names, or recreates the task's own projection when that was the workspace and it is gone ([`agent-control.md`](agent-control.md) "Reclaiming a task whose endpoint is gone").
 
 Existing task operations use recorded endpoint ids and do not move a live task when labels change.
 A relaunch whose recorded pane is gone may recreate one task tab in the same recorded workspace only after the isolated copy exists and every possible matching task owner is absent or classifies as `dead` or `no-agent`.
 A live, `stale-agent`, or otherwise unreadable matching task tab, a missing workspace, or a duplicate outside the recorded workspace refuses before creation; the recovery preflight uses the strict pane classifier even though the recovery-grade relaunch read maps a `stale-agent` recorded endpoint to `dead`.
-When that task has a presentation journal, the recovery copies it before creating the replacement, advances the journal to the new tab and pane, and restores the pre-recovery copy if the relaunch aborts before its replacement record is published.
+A missing workspace is accepted only when the task's version 2 presentation binding names exactly the recorded session, workspace, tab, and pane, and its recorded parent workspace still exists with its recorded label.
+That proves the workspace was the task's own projection, which disappears with its only pane, so the recovery recreates the projection through the ordinary projected create beneath that recorded parent ([Presentation journal](#presentation-journal)).
+When that task has a presentation journal, the recovery copies it before creating the replacement, advances the journal to the new tab and pane or replaces it with the recreated projection's new binding, and restores the pre-recovery copy if the relaunch aborts before its replacement record is published.
 An abort before the launch command is delivered also closes the minted pane by its exact id.
 The per-home workspace is reused while it has task tabs.
 Closing its last tab can remove the workspace, and the next spawn recreates it.
@@ -252,6 +254,7 @@ Presentation is a best-effort visual projection, never task ownership or lifecyc
 A presentation journal is the per-task record in this home's `state/` that binds a task to its projected workspace.
 
 Only a fresh task with neither metadata nor an existing presentation journal is eligible for projected creation.
+The one other projected create is the control plane's reclaim of a task whose own bound projection disappeared with its pane ([Recovery and existing tasks](#recovery-and-existing-tasks)); it retires that stale binding first and places the new projection beneath the binding's recorded parent.
 Creation proceeds in this order:
 
 1. Firstmate atomically publishes a three-field version 1 journal containing a random 128-bit base64url token, before asking Herdr to create anything.

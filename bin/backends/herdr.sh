@@ -2450,28 +2450,28 @@ fm_backend_herdr_agent_alive() {  # <target>
 
 # fm_backend_herdr_relaunch_preflight: validate the identities needed to
 # recreate a missing task pane without adopting another task. The recorded
-# workspace must still exist, every matching task tab outside that workspace is
-# refused, and every matching tab that could contain an agent must classify as
-# dead or no-agent. A stale-agent tab - a lingering registration over a
-# shell-only pane - refuses with the other non-husk states even though the
-# recovery-grade relaunch read maps a recorded stale-agent endpoint to dead.
-# This is read-only; the caller creates the replacement only after this proof
-# and holds the task lifecycle lock throughout.
+# workspace must still exist, unless an exact version 2 presentation binding
+# proves it was the task's own one-task projection and its recorded parent
+# workspace still exists; that case sets
+# FM_BACKEND_HERDR_RELAUNCH_PROJECTION_GONE=1 and leaves the binding in the
+# FM_BACKEND_HERDR_JOURNAL_* globals. Every matching task tab outside the
+# recorded workspace is refused, and every matching tab that could contain an
+# agent must classify as dead or no-agent. A stale-agent tab - a lingering
+# registration over a shell-only pane - refuses with the other non-husk states
+# even though the recovery-grade relaunch read maps a recorded stale-agent
+# endpoint to dead. This is read-only; the caller creates the replacement only
+# after this proof and holds the task lifecycle lock throughout.
 fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-target> <old-tab> <journal>
   local session=$1 workspace=$2 id=$3 old_target=$4 old_tab=$5 journal=${6:-}
-  local workspaces wsid tabs tab_id label pane state matches=0
+  local workspaces wsid tabs tab_id label pane state matches=0 bound=0
   local journal_session journal_workspace journal_pane
+  FM_BACKEND_HERDR_RELAUNCH_PROJECTION_GONE=0
   workspaces=$(fm_backend_herdr_cli "$session" workspace list 2>/dev/null) || {
     echo "error: herdr recovery could not inspect session '$session'; refusing to recreate task $id's missing endpoint" >&2
     return 1
   }
   printf '%s' "$workspaces" | jq -e '(.result.workspaces | type) == "array"' >/dev/null 2>&1 || {
     echo "error: herdr recovery received an unreadable workspace list for session '$session'; refusing to recreate task $id's missing endpoint" >&2
-    return 1
-  }
-  printf '%s' "$workspaces" | jq -e --arg want "$workspace" \
-    'any(.result.workspaces[]?; .workspace_id == $want)' >/dev/null 2>&1 || {
-    echo "error: recorded Herdr workspace '$workspace' for task $id is missing; refusing to recreate its endpoint" >&2
     return 1
   }
   if [ -n "$journal" ] && { [ -e "$journal" ] || [ -L "$journal" ]; }; then
@@ -2491,6 +2491,23 @@ fm_backend_herdr_relaunch_preflight() {  # <session> <workspace> <task-id> <old-
         echo "error: task $id's Herdr recovery journal does not match its recorded missing endpoint; refusing to recreate it" >&2
         return 1
       }
+    bound=1
+  fi
+  if ! printf '%s' "$workspaces" | jq -e --arg want "$workspace" \
+    'any(.result.workspaces[]?; .workspace_id == $want)' >/dev/null 2>&1; then
+    [ "$bound" = 1 ] || {
+      echo "error: recorded Herdr workspace '$workspace' for task $id is missing; refusing to recreate its endpoint" >&2
+      return 1
+    }
+    printf '%s' "$workspaces" | jq -e \
+      --arg parent "$FM_BACKEND_HERDR_JOURNAL_PARENT_WORKSPACE_ID" \
+      --arg parent_label "$FM_BACKEND_HERDR_JOURNAL_PARENT_LABEL" \
+      'any(.result.workspaces[]?; .workspace_id == $parent and .label == $parent_label)' >/dev/null 2>&1 || {
+      echo "error: task $id's projection workspace '$workspace' and its recorded parent workspace '$FM_BACKEND_HERDR_JOURNAL_PARENT_WORKSPACE_ID' are both gone; refusing to recreate its endpoint" >&2
+      return 1
+    }
+    # shellcheck disable=SC2034  # bin/fm-spawn.sh consumes this verdict
+    FM_BACKEND_HERDR_RELAUNCH_PROJECTION_GONE=1
   fi
   while IFS= read -r wsid; do
     [ -n "$wsid" ] || continue

@@ -92,7 +92,8 @@ Switching harness is therefore one ordinary relaunch rather than a separate mech
 
 A Herdr pane or workspace can be destroyed out from under a live task by churn or a session restart.
 The task's worktree, branch, commits, and uncommitted changes all survive that; only its terminal does not.
-A reclaim recovers a destroyed pane; a destroyed recorded workspace refuses.
+A reclaim recovers a destroyed pane.
+A destroyed recorded workspace refuses, unless it was the task's own one-task presentation projection - Herdr's default layout, whose workspace disappears with its only pane - in which case the reclaim recreates that projection.
 
 **Reclaim is Herdr-only.** On tmux, both verbs refuse a `missing` endpoint, leaving it exactly as deadlocked as it was before this mechanism existed - deliberately, and with the reason stated rather than guessed past.
 
@@ -128,17 +129,19 @@ What a reclaim is not:
 - It does **not** cover a secondmate. A secondmate whose endpoint is gone already has one recovery path - `bin/fm-spawn.sh <id> --secondmate`, driven by the session-start sweep or the watcher's liveness tick - so control-plane reclaim refuses and names it rather than becoming a second path to the same outcome.
 
 The re-created tab is opened in the herdr session **and workspace** the record names, never in whichever session or workspace the recovering seat happens to sit in - relocating a task onto another herdr server or workspace would be an identity change published as a self-consistent but wrong record.
+The one exception is a recorded workspace that was the task's own projection and is gone; the reclaim then creates a fresh one-task projection for it in the recorded session, never a shared or flat workspace.
 Placement never consults the reclaiming seat, so a plain ssh or cron shell and a seat inside any herdr session reclaim to the same place.
 Before it creates anything, the launch owner runs a read-only preflight over the recorded session, under the task's lifecycle lock, and refuses when:
 
-- the recorded `herdr_workspace_id` no longer exists;
+- the recorded `herdr_workspace_id` no longer exists, unless the task's version 2 presentation binding names exactly the recorded session, workspace, tab, and pane - which proves the workspace was the task's own projection - and the binding's recorded parent workspace still exists with its recorded label;
 - a task tab labeled `fm-<id>` exists in any other workspace, which would make the reclaim a second copy of the task;
 - an `fm-<id>` tab in the recorded workspace is not positively agent-free - only `dead` or `no-agent` passes, so a live, `stale-agent`, or unreadable tab refuses;
 - the task's presentation journal does not name the recorded session, workspace, tab, and pane.
 
-The pane and tab ids necessarily change (the pane did not survive), and the record follows them; `herdr_session` and `herdr_workspace_id` do not.
-A Herdr reclaim never creates a presentation projection: projection is a presentation-only layout that is never endpoint or ownership authority ([`docs/herdr-backend.md`](herdr-backend.md)).
-When the task already has a presentation journal, the reclaim copies it before creating the replacement, advances it to the new tab and pane, and restores that copy if the relaunch aborts before its record is republished.
+The pane and tab ids necessarily change (the pane did not survive), and the record follows them; `herdr_session` never does, and `herdr_workspace_id` changes only when a gone projection is recreated.
+When the task already has a presentation journal, the reclaim copies it before creating the replacement and restores that copy if the relaunch aborts before its record is republished.
+A replacement tab in the surviving recorded workspace advances that journal to the new tab and pane.
+A recreated projection instead goes through the same projected create a fresh spawn uses, under the session presentation lock: a new journal and token, a new workspace beneath the recorded parent, ordering, and a fresh version 2 binding ([`docs/herdr-backend.md`](herdr-backend.md) "Presentation spaces").
 Until the launch command is delivered, an aborted relaunch closes the pane it minted through the same exact-id abort cleanup a projected spawn uses, so a refusal in that window does not leave a stray pane beside the record's old, gone endpoint.
 The worktree and the task's records are unaffected either way.
 
@@ -191,5 +194,5 @@ The empirical basis for each adapter's value is the `harness-adapters` skill's v
 ## Verification
 
 - `tests/fm-control.test.sh` - the adapter contract for its verified-harness lane (adapters outside the lane pin their control mechanics in their own harness suites), the backend capability matrix, exact-id scoping, the closed verb list, the busy, idle, dead, and idempotent lifecycle cases, and marker non-regression, all against a stubbed session provider.
-- `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, rollback after a failed launch, and the endpoint-absence proof both verbs share - the Herdr reclaim of a destroyed endpoint with its missing-workspace, other-workspace duplicate, and drifted-journal refusals and its journal restore and pane cleanup on abort, and tmux refusing one it cannot prove absent.
+- `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, rollback after a failed launch, and the endpoint-absence proof both verbs share - the Herdr reclaim of a destroyed endpoint, including the recreation of a gone own projection, with its missing-workspace, other-workspace duplicate, and drifted-journal refusals and its journal restore and pane cleanup on abort, and tmux refusing one it cannot prove absent.
 - `tests/fm-control-herdr-smoke.test.sh` - the second state-verified backend against the real herdr binary, on an isolated throwaway lab session.
