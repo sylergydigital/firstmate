@@ -85,8 +85,18 @@ set -u
 case "$*" in
   *"#{pane_current_path}"*) cat "$FM_FAKE_TH_DB/pane"; exit 0 ;;
 esac
+window_file="$FM_FAKE_TH_DB/window"
 case "${1:-}" in
   display-message) printf 'firstmate\n' ;;
+  list-windows) [ ! -s "$window_file" ] || cat "$window_file" ;;
+  new-window)
+    name= previous=
+    for a in "$@"; do
+      [ "$previous" != -n ] || name=$a
+      previous=$a
+    done
+    printf '%s\n' "$name" > "$window_file"
+    ;;
   send-keys)
     for a in "$@"; do
       [ "$a" != 'treehouse get' ] || treehouse get
