@@ -1,0 +1,38 @@
+$ bin/fm-x-poll.sh   # relay offers a Query
+x-mention req-q1
+exit=0
+$ bin/fm-x-poll.sh   # relay offers an ordinary mention
+x-mention req-m1
+exit=0
+$ bin/fm-x-poll.sh   # nothing pending
+exit=0
+
+--- relay request log (headers the relay saw) ---
+{"method": "GET", "path": "/connector/poll", "features": "query", "auth_present": true, "body": null}
+{"method": "GET", "path": "/connector/poll", "features": "query", "auth_present": true, "body": null}
+{"method": "GET", "path": "/connector/poll", "features": "query", "auth_present": true, "body": null}
+
+--- diff sent Query vs stashed state/x-inbox/req-q1.json (jq -S) ---
+IDENTICAL
+{
+  "kind": "query",
+  "query": {
+    "asker": {
+      "handle": "@mo",
+      "display_name": "Mo Munem",
+      "platform": "discord"
+    },
+    "direct": false,
+    "outsiders": false,
+    "continues": null
+  }
+}
+--- diff sent mention vs stashed req-m1.json ---
+IDENTICAL
+false
+--- x-context ---
+req-m1.json
+req-m1.offered.json
+req-q1.json
+req-q1.offered.json
+{"request_id":"req-q1","platform":"discord","reply_max_chars":"1900","recorded_at":1792691039}
