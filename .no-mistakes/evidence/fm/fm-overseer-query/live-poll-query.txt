@@ -1,0 +1,44 @@
+$ FM_HOME=$LAB bin/fm-x-poll.sh   # poll 1
+x-mention req-q1
+(exit 0)
+$ FM_HOME=$LAB bin/fm-x-poll.sh   # poll 2
+x-mention req-q2
+(exit 0)
+$ FM_HOME=$LAB bin/fm-x-poll.sh   # poll 3
+x-mention req-m1
+(exit 0)
+$ FM_HOME=$LAB bin/fm-x-poll.sh   # poll 4
+(exit 0)
+
+== stashed inbox ==
+--- req-m1.json
+{"request_id":"req-m1","platform":"discord","reply_max_chars":1900,"text":"status?","author_id":"captain-1","in_reply_to":null,"in_reply_to_chain":[],"images":[],"attachments":[]}
+--- req-q1.json
+{"request_id":"req-q1","platform":"discord","reply_max_chars":1900,"text":"what is Aisha working on today?","author_id":"overseer-77","in_reply_to":null,"in_reply_to_chain":[],"images":[],"attachments":[],"kind":"query","query":{"asker":{"handle":"@mo","display_name":"Mo Munem","platform":"discord"},"direct":false,"outsiders":false,"continues":null}}
+--- req-q2.json
+{"request_id":"req-q2","platform":"slack","reply_max_chars":3000,"text":"and when does that PR land?","author_id":"overseer-77","in_reply_to":null,"in_reply_to_chain":[],"images":[],"attachments":[],"kind":"query","query":{"asker":{"handle":"@mo","display_name":"Mo Munem","platform":"slack"},"direct":true,"outsiders":true,"continues":"req-q1"}}
+
+== x-context ==
+--- req-m1.json
+{"request_id":"req-m1","platform":"discord","reply_max_chars":"1900","recorded_at":1792677788}
+--- req-m1.offered.json
+{"request_id":"req-m1","recorded_at":1792677788}
+--- req-q1.json
+{"request_id":"req-q1","platform":"discord","reply_max_chars":"1900","recorded_at":1792677787}
+--- req-q1.offered.json
+{"request_id":"req-q1","recorded_at":1792677787}
+--- req-q2.json
+{"request_id":"req-q2","platform":"","reply_max_chars":"3000","recorded_at":1792677787}
+--- req-q2.offered.json
+{"request_id":"req-q2","recorded_at":1792677787}
+
+$ bin/fm-x-reply.sh req-q1 --text-file answer.txt
+req-q1
+(exit 0)
+
+== relay-side request log (what the relay received) ==
+{"method": "GET", "path": "/connector/poll", "Firstmate-Features": "query", "Authorization": "Bearer ***", "body": null}
+{"method": "GET", "path": "/connector/poll", "Firstmate-Features": "query", "Authorization": "Bearer ***", "body": null}
+{"method": "GET", "path": "/connector/poll", "Firstmate-Features": "query", "Authorization": "Bearer ***", "body": null}
+{"method": "GET", "path": "/connector/poll", "Firstmate-Features": "query", "Authorization": "Bearer ***", "body": null}
+{"method": "POST", "path": "/connector/answer", "Firstmate-Features": null, "Authorization": "Bearer ***", "body": {"request_id": "req-q1", "text": "Aisha is on the Eden Care CRM import fix (PR #42, in review)."}}
