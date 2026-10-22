@@ -414,7 +414,7 @@ test_poll_advertises_query_and_preserves_query_payload() {
     attachments: [],
     kind: "query",
     query: {
-      asker: {handle: "@mo", display_name: "Mo Munem", platform: "discord"},
+      asker: {handle: "@sam", display_name: "Sam Lead", platform: "discord"},
       direct: false,
       outsiders: false,
       continues: null
@@ -432,7 +432,7 @@ test_poll_advertises_query_and_preserves_query_payload() {
   [ "$(jq -S . "$f")" = "$(printf '%s' "$body" | jq -S .)" ] \
     || fail "the stashed Query must preserve the relay payload in full"
   [ "$(jq -r '.kind' "$f")" = "query" ] || fail "the stashed Query must keep kind"
-  [ "$(jq -r '.query.asker.handle' "$f")" = "@mo" ] \
+  [ "$(jq -r '.query.asker.handle' "$f")" = "@sam" ] \
     || fail "the stashed Query must keep the asker"
   [ "$(jq -r '.query.direct, .query.outsiders, .query.continues' "$f" | tr '\n' ' ')" = "false false null " ] \
     || fail "the stashed Query must keep direct, outsiders, and continues"
