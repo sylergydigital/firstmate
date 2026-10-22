@@ -24,14 +24,14 @@ TMP_ROOT=$(fm_test_tmproot fm-x-mode-tests)
 # A fakebin `curl` that mimics the relay: it reads its behavior from env
 # (FAKE_POLL_CODE/FAKE_POLL_BODY/FAKE_ANSWER_CODE, and
 # FAKE_REQCTX_CODE/FAKE_REQCTX_BODY for the request-context lookup), records each
-# call to FAKE_CURL_LOG, writes the poll/lookup body to the script's -o file, and
+# call (including any Firstmate-Features header) to FAKE_CURL_LOG, writes the poll/lookup body to the script's -o file, and
 # prints the HTTP code to stdout exactly as the real `-w '%{http_code}'` would.
 make_fake_curl() {
   local dir=$1 fakebin
   fakebin=$(fm_fakebin "$dir")
   cat > "$fakebin/curl" <<'SH'
 #!/usr/bin/env bash
-ofile="" method=GET data="" url="" auth=""
+ofile="" method=GET data="" url="" auth="" features=""
 argv=$*
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -50,6 +50,7 @@ while [ $# -gt 0 ]; do
       case "$2" in
         @*) while IFS= read -r header; do case "$header" in Authorization:*) auth=$header ;; esac; done < "${2#@}" ;;
         Authorization:*) auth=$2 ;;
+        Firstmate-Features:*) features=$2 ;;
       esac
       shift 2
       ;;
@@ -60,7 +61,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 if [ -n "${FAKE_CURL_LOG:-}" ]; then
-  { echo "argv=$argv"; echo "method=$method"; echo "url=$url"; echo "auth=$auth"; echo "data=$data"; } >> "$FAKE_CURL_LOG"
+  { echo "argv=$argv"; echo "method=$method"; echo "url=$url"; echo "auth=$auth"; echo "features=$features"; echo "data=$data"; } >> "$FAKE_CURL_LOG"
 fi
 case "$url" in
   */connector/poll)
@@ -389,6 +390,55 @@ test_poll_offer_claim_failure_reports_once() {
     || fail "a recovered offer claim must emit the mention wake (got: $out)"
   assert_absent "$home/state/x-poll.claim-error" "a successful offer claim must clear the diagnostic marker"
   pass "fm-x-poll retains offer claim diagnostics until recovery"
+}
+
+# An Overseer Query is offered only to a client that advertises it, and it
+# reaches fmx-respond through the same stash as any mention. The responder tells
+# a Query from an ordinary mention by `kind` and reads its asker, DM, outsider,
+# and continuation facts from `query`, so the stash must keep both untouched.
+test_poll_advertises_query_and_preserves_query_payload() {
+  local home fakebin log out rc body f
+  home="$TMP_ROOT/poll-query"; mkdir -p "$home"
+  fakebin=$(make_fake_curl "$home")
+  log="$home/curl.log"
+  printf 'FMX_PAIRING_TOKEN=tok-query\n' > "$home/.env"
+  body=$(jq -cn '{
+    request_id: "req-query",
+    platform: "discord",
+    reply_max_chars: 1900,
+    text: "what is Aisha working on today?",
+    author_id: "overseer-77",
+    in_reply_to: null,
+    in_reply_to_chain: [],
+    images: [],
+    attachments: [],
+    kind: "query",
+    query: {
+      asker: {handle: "@mo", display_name: "Mo Munem", platform: "discord"},
+      direct: false,
+      outsiders: false,
+      continues: null
+    }
+  }')
+  out=$(PATH="$fakebin:$BASE_PATH" FM_HOME="$home" FMX_RELAY_URL="https://relay.test" \
+    FAKE_CURL_LOG="$log" FAKE_POLL_CODE=200 FAKE_POLL_BODY="$body" \
+    "$ROOT/bin/fm-x-poll.sh"); rc=$?
+  expect_code 0 "$rc" "poll query exit"
+  assert_grep "features=Firstmate-Features: query" "$log" \
+    "poll must advertise Query support with the Firstmate-Features header"
+  [ "$out" = "x-mention req-query" ] || fail "a Query must wake like a mention (got: $out)"
+  f="$home/state/x-inbox/req-query.json"
+  assert_present "$f" "poll must stash the Query"
+  [ "$(jq -S . "$f")" = "$(printf '%s' "$body" | jq -S .)" ] \
+    || fail "the stashed Query must preserve the relay payload in full"
+  [ "$(jq -r '.kind' "$f")" = "query" ] || fail "the stashed Query must keep kind"
+  [ "$(jq -r '.query.asker.handle' "$f")" = "@mo" ] \
+    || fail "the stashed Query must keep the asker"
+  [ "$(jq -r '.query.direct, .query.outsiders, .query.continues' "$f" | tr '\n' ' ')" = "false false null " ] \
+    || fail "the stashed Query must keep direct, outsiders, and continues"
+  [ "$(jq -r '.platform' "$home/state/x-context/req-query.json")" = "discord" ] \
+    || fail "a Query must record its reply context like any mention"
+  pass "fm-x-poll advertises Query support and stashes a Query with kind and query intact"
 }
 
 test_poll_preserves_conversation_context() {
@@ -3186,6 +3236,7 @@ test_poll_mentions_wake_once_per_durable_offer
 test_poll_offer_claim_failure_reports_once
 test_poll_preserves_conversation_context
 test_poll_preserves_inbound_attachment_urls
+test_poll_advertises_query_and_preserves_query_payload
 test_poll_inbox_commit_failure_reports_error
 test_poll_inbox_private_publication_rejects_unsafe_paths
 test_poll_empty_text_is_silent
