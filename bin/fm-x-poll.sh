@@ -34,6 +34,10 @@
 # durable context record lets a delayed follow-up recover the ORIGINAL
 # platform/budget even after this inbox file is drained.
 #
+# Every poll advertises the optional relay features this client handles with
+# `Firstmate-Features: query`, so the relay may offer Overseer Queries; a Query
+# is stashed whole like any mention, with its `kind` and `query` fields intact.
+#
 # Config (home .env, FMX_ENV_FILE, or env): FMX_PAIRING_TOKEN (required),
 # FMX_RELAY_URL (default https://myfirstmate.io). Auth: Authorization: Bearer
 # <token>.
@@ -139,6 +143,7 @@ AUTH_HEADER_FILE=$(fmx_auth_header_file) || { emit_error_once "invalid token"; e
 code=$(curl -m 5 -s -o "$BODY_FILE" -w '%{http_code}' \
   -H "@$AUTH_HEADER_FILE" \
   -H 'Accept: application/json' \
+  -H 'Firstmate-Features: query' \
   "$FMX_RELAY/connector/poll" 2>/dev/null) || exit 0
 
 # 204 (nothing pending) is the common path; only 200 can carry a mention.

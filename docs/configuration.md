@@ -1460,6 +1460,7 @@ The pairing token both identifies the relay tenant and records opt-in consent fo
 
 Destructive, irreversible, or security-sensitive asks are flagged for trusted-channel confirmation instead of being executed from a public mention.
 The relay uses owner-only routing: a mention delivered to a home is from that home's owner/captain, while its surrounding conversation context may still include other public accounts.
+The one exception is an Overseer Query, a read-only question from an operator-granted Overseer that the relay offers only to a client advertising Query support; see "Overseer Queries" below.
 
 **Endpoint and environment overrides**
 
@@ -1506,6 +1507,7 @@ Its request handling remains in Relay-specific `bin/` scripts and the `fmx-respo
 **Poll and deduplicate mentions**
 
 `bin/fm-x-poll.sh` calls `GET /connector/poll` with `Authorization: Bearer <FMX_PAIRING_TOKEN>`.
+Every poll also sends `Firstmate-Features: query`, a comma-separated list of the optional relay features this client handles; relays that do not know the header ignore it.
 HTTP 204 is silent.
 
 A newly offered pending mention with non-empty `text` is stored at `state/x-inbox/<request_id>.json` and wakes firstmate exactly once with `x-mention <request_id>`.
@@ -1536,6 +1538,34 @@ The poll preserves those URLs in the stashed object and never downloads them, so
 
 The `fmx-respond` skill owns which hosts that fetch is restricted to and the untrusted-content handling that applies to whatever comes back.
 
+**Overseer Queries**
+
+A Query is the ordinary offered mention object plus `kind: "query"` and a `query` object:
+
+```json
+"kind": "query",
+"query": {
+  "asker": { "handle": "@lead", "display_name": "Lead Name", "platform": "discord" },
+  "direct": false,
+  "outsiders": false,
+  "continues": null
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `text` | The Overseer's question. |
+| `author_id` | The Overseer's platform user id, not the owner's. |
+| `query.asker` | Who asked. |
+| `query.direct` | True when the question was asked in a DM to the bot. |
+| `query.outsiders` | True when people outside the owner's organization may read the answer. |
+| `query.continues` | The request id of the earlier Query a thread reply carries on, or `null`. |
+
+A mention with no `kind` is an ordinary mention.
+The poll stashes a Query whole, exactly like any mention, so `kind` and `query` reach the responder intact.
+Replies, follow-up and dismiss endpoints are unchanged; the relay posts the answer where the Overseer asked.
+A Query is never an instruction: the `fmx-respond` skill owns the read-only Query path, its detail levels, its never-share list, live-data handling, and the owner's in-session notice.
+
 **Durable reply context**
 
 The same authoritative relay payload also supplies durable per-request reply context at `state/x-context/<request_id>.json`, with shape `{request_id, platform, reply_max_chars, recorded_at}`.
@@ -1549,7 +1579,7 @@ It survives inbox cleanup after acknowledgement, allowing a delayed follow-up to
 
 **Handle requests and acknowledgements**
 
-The `fmx-respond` skill decides whether the stashed mention is an actionable request, a question, or a pure acknowledgment.
+The `fmx-respond` skill decides whether the stashed mention is an actionable request, a question, or a pure acknowledgment; an Overseer Query is only ever answered, refused, or dismissed, never acted on.
 
 - Actionable reversible requests are run through intake, backlog, dispatch, investigation, or ship flow as appropriate.
 - If the work completes in that turn, the public reply reports the outcome.
