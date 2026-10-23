@@ -4900,6 +4900,62 @@ test_recorded_pr_recorded_after_first_alarm_steer_alarms() {
   pass "a steer after the PR is recorded voids the bound even when no declaration was ever written"
 }
 
+# A steer written while the worker was still in its last turn predates the
+# done: line, and the worker acknowledges it only afterwards. Its record keeps
+# that earlier mtime when it is moved into handled/, so only the acknowledgement
+# itself can say the worker went back to work after the delivery.
+test_recorded_pr_steer_handled_after_done_alarms() {
+  local dir state out capture before
+  dir=$(make_pr_home recorded-pr-acked-late 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  before=$(( $(date +%s) - 5 ))
+  mkdir -p "$state/held-merge.inbox/handled"
+  printf 'schema=fm-task-inbox.v1\n--\nrename the flag before the merge\n' > "$state/held-merge.inbox/001.msg"
+  set_mtime "$before" "$state/held-merge.inbox/001.msg"
+  set_mtime "$before" "$state/held-merge.inbox/handled"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker whose only steer predates its delivery: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] \
+    || fail "a steer written before the done: line voided the bound before it was acted on"
+
+  mv "$state/held-merge.inbox/001.msg" "$state/held-merge.inbox/handled/001.msg"
+  steered_stall_alarms "$dir" 1
+  pass "a steer acknowledged after the done: line voids the recorded-PR bound even though it was written before it"
+}
+
+# Once the bound no longer applies, a stable pane has no reminder left to owe, so
+# the watcher drops the recorded-PR re-surface marker (persisted watcher state)
+# rather than re-reading the bound on every poll until the worker next appends a
+# status; the pane stays as inert as any terminal pane after its alarm.
+test_recorded_pr_marker_dropped_once_the_bound_stops_applying() {
+  local dir state out capture throttle c
+  dir=$(make_pr_home recorded-pr-marker-drop 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  throttle="$state/.paused-resurfaced-$(hold_key)"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ -e "$throttle" ] || fail "the absorbed first sight started no reminder interval"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_launch "$dir" "$out" "$capture"
+  c=0
+  while [ "$c" -lt 4 ]; do
+    wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 \
+      || { reap "$HOLD_WATCH_PID"; fail "a stable pane whose bound was voided alarmed again: $(cat "$out")"; }
+    c=$((c + 1))
+  done
+  reap "$HOLD_WATCH_PID"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "a stable pane whose bound was voided alarmed again"
+  [ ! -e "$throttle" ] || fail "the stable pane kept a recorded-PR marker its bound no longer covers"
+  pass "a stable pane drops its recorded-PR marker once the bound stops applying"
+}
+
 test_recorded_pr_keeps_other_verbs_alarming() {
   local dir state out capture wakes
   dir=$(make_pr_home recorded-pr-blocked 'blocked: the PR needs a release-host credential') \
@@ -7517,6 +7573,8 @@ test_recorded_pr_never_reminds_while_away
 test_recorded_pr_steer_voids_the_bound
 test_recorded_pr_steer_after_released_captain_call_alarms
 test_recorded_pr_recorded_after_first_alarm_steer_alarms
+test_recorded_pr_steer_handled_after_done_alarms
+test_recorded_pr_marker_dropped_once_the_bound_stops_applying
 test_secondmate_paused_resurfaces_in_normal_mode
 test_secondmate_captain_held_resurfaces_in_normal_mode
 test_secondmate_nonpaused_stale_remains_suppressed

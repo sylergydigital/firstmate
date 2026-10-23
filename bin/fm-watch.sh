@@ -2535,11 +2535,12 @@ captain_call_stale_bound() {  # <window-key> <task>
 # included (recorded_pr_reminder_due). The declaration carries the status-log
 # signature, so any newer status event starts a fresh interval; that event
 # reaches firstmate on its own signal wake, not through this stale path.
-# A steering-inbox record, open or handled, newer than the status log voids the
-# bound, the same rule status_worker_wait_verb applies to a worker's own wait: a
-# steer puts the worker back to work without a status append, so until it
-# appends one a stale sight alarms, or wedge-escalates, exactly as it did before
-# this bound existed. While the away-posture record exists no reminder is owed
+# A steer written or acknowledged after the last status line voids the bound,
+# the rule status_worker_wait_verb applies to a worker's own wait: a steer puts
+# the worker back to work without a status append, so until it appends one a
+# stale sight alarms, or wedge-escalates, exactly as it did before this bound
+# existed. An acknowledgement moves the record into handled/ with its own mtime
+# intact, so the handled/ directory's mtime is what dates it. While the away-posture record exists no reminder is owed
 # at all, as for the captain-call bound: the return brief lists the merge.
 # Sets STALE_WAIT_DECLARATION and RECORDED_PR only when the bound applies.
 # Returns 0 to absorb; 1 to alarm (the reminder is due, or the bound does not
@@ -2555,7 +2556,7 @@ recorded_pr_stale_bound() {  # <window-key> <task>
   [ "$verb" = "done" ] || return 1
   pr=$(fm_meta_get "$STATE/$task.meta" pr)
   [ -n "$pr" ] || return 1
-  for rec in "$STATE/$task.inbox"/*.msg "$STATE/$task.inbox/handled"/*.msg; do
+  for rec in "$STATE/$task.inbox"/*.msg "$STATE/$task.inbox/handled"; do
     [ "$rec" -nt "$STATE/$task.status" ] && return 1
   done
   declaration="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true)"
@@ -3962,12 +3963,17 @@ EOF
             # configured is what keeps a leftover marker from holding a window
             # here once the operator has turned the cap back off.
             wedge_timer_check "$w" "$ssf" "stale (overridden terminal status)" "$ewf" "$task" "$h" "$dialog"
-          elif recorded_pr_reminder_due "$key" && ! recorded_pr_stale_bound "$key" "$task" \
-            && [ -n "$RECORDED_PR" ]; then
+          elif recorded_pr_reminder_due "$key" && ! recorded_pr_stale_bound "$key" "$task"; then
             # The same hash, absorbed by the recorded-PR bound, has reached its
-            # interval with nothing newer: the one reminder it owes.
-            surface_terminal_stale "$w" "$h" \
-              "$(stale_reason_naming_dialog "$(recorded_pr_stale_reason "$w" "$task")" "$dialog")"
+            # interval with nothing newer: the one reminder it owes. A bound that
+            # no longer applies owes none, and its marker goes with it, so this
+            # stable pane stops re-reading the bound on every poll.
+            if [ -n "$RECORDED_PR" ]; then
+              surface_terminal_stale "$w" "$h" \
+                "$(stale_reason_naming_dialog "$(recorded_pr_stale_reason "$w" "$task")" "$dialog")"
+            else
+              rm -f "$STATE/.paused-resurfaced-$key"
+            fi
           fi
           # else: already surfaced as genuinely terminal on a prior poll of
           # this same hash - nothing left to do (matches the original,
