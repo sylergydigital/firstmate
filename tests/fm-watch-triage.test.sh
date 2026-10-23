@@ -4683,6 +4683,84 @@ test_reheld_captain_call_starts_its_own_resurface_window() {
   pass "a released-then-re-held task is a distinct captain call whose first sight still alarms"
 }
 
+# --- a finished worker whose PR firstmate already recorded ------------------
+# The same churn without any backlog hold: the delivery's PR was recorded through
+# bin/fm-pr-check.sh (pr= in the task's meta) and then waits on the merge word or
+# on cleanup. Recording it proves firstmate already read the delivery, so even
+# the first stale sight is absorbed and the window reminds once per
+# FM_PAUSE_RESURFACE_SECS, on a churning pane and on a stable one alike. Every
+# other status verb keeps its first-sight alarm even with a PR recorded.
+make_pr_home() {  # <name> <status-line>
+  local name=$1 line=$2 dir state
+  dir=$(make_case "$name"); state="$dir/state"
+  mkdir -p "$dir/data" "$dir/config"
+  printf 'window=test:fm-held-merge\nkind=ship\nharness=grok\nbackend=tmux\npr=https://example.invalid/pull/7\n' \
+    > "$state/held-merge.meta"
+  printf '%s\n' "$line" > "$state/held-merge.status"
+  printf '%s' "$(seen_sig "$state/held-merge.status")" > "$state/.seen-held-merge_status"
+  printf '%s\n' "$dir"
+}
+
+test_recorded_pr_bounds_finished_worker_stale() {
+  local dir state out capture throttle wakes c reason
+  dir=$(make_pr_home recorded-pr-finished 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  throttle="$state/.paused-resurfaced-$(hold_key)"
+
+  # First sight and every later pane tick are absorbed inside the interval.
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 2 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 0 ] || fail "a finished worker with a recorded PR alarmed $wakes time(s) inside the interval"
+  grep -q '^recorded-pr:https://example.invalid/pull/7:' "$throttle" 2>/dev/null \
+    || fail "the absorbed first sight started no reminder interval"
+
+  # Past the interval the next pane tick reminds exactly once, naming the PR.
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, elapsed 9s' \
+    || fail "a finished worker with a recorded PR never reminded after its interval"
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 1 ] || fail "the elapsed interval produced $wakes wakes instead of one reminder"
+  reason=$(awk -F '\t' '$3 == "stale" { print $5 }' "$state/.wake-queue")
+  case "$reason" in
+    *'recorded PR https://example.invalid/pull/7 still awaits a merge decision or cleanup'*'not a wedge'*) ;;
+    *) fail "the reminder did not say what it is reminding about: $reason" ;;
+  esac
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the reminder"
+
+  # A stable pane stays quiet inside the fresh interval...
+  hold_watch_launch "$dir" "$out" "$capture"
+  c=0
+  while [ "$c" -lt 4 ]; do
+    wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 \
+      || { reap "$HOLD_WATCH_PID"; fail "a stable recorded-PR pane alarmed inside its interval: $(cat "$out")"; }
+    c=$((c + 1))
+  done
+  reap "$HOLD_WATCH_PID"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "a stable recorded-PR pane alarmed inside its interval"
+
+  # ...and reminds once the interval elapses, with no pane change at all.
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_launch "$dir" "$out" "$capture"
+  wait_for_exit "$HOLD_WATCH_PID" 100 \
+    || { reap "$HOLD_WATCH_PID"; fail "a stable recorded-PR pane never reminded after its interval"; }
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "a stable recorded-PR pane did not remind exactly once"
+  pass "a finished worker with a recorded PR stays quiet and reminds once per interval, churning or stable"
+}
+
+test_recorded_pr_keeps_other_verbs_alarming() {
+  local dir state out capture wakes
+  dir=$(make_pr_home recorded-pr-blocked 'blocked: the PR needs a release-host credential') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, elapsed 1s' \
+    || fail "a blocker was silenced because its task had a recorded PR"
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 1 ] || fail "a blocker with a recorded PR produced $wakes wakes instead of one"
+  pass "a recorded PR bounds only a finished worker's stale alarm, never a blocker's"
+}
+
 
 
 test_secondmate_paused_resurfaces_in_normal_mode() {
@@ -7282,6 +7360,8 @@ test_open_captain_call_bounds_stale_churn
 test_stale_churn_without_a_captain_call_still_alarms
 test_failed_wake_append_does_not_arm_the_captain_hold_throttle
 test_reheld_captain_call_starts_its_own_resurface_window
+test_recorded_pr_bounds_finished_worker_stale
+test_recorded_pr_keeps_other_verbs_alarming
 test_secondmate_paused_resurfaces_in_normal_mode
 test_secondmate_captain_held_resurfaces_in_normal_mode
 test_secondmate_nonpaused_stale_remains_suppressed

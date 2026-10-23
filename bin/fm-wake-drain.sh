@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Present durable watcher wake records, retire rows no actor could ever consume,
-# optionally acknowledge handled records,
+# optionally acknowledge handled records (an acknowledgement always prints one
+# result line, so success is never silent),
 # annotate every unread line for validated signal status keys, surface unread
 # informational status lines, latest captain-facing statuses not covered by a
 # newer branch outcome, OPEN DECISIONS, captain-call record divergence, and on
@@ -966,6 +967,12 @@ if [ -n "$ACK_THROUGH" ]; then
   elif [ "$RECOVERY_ACK_MOVED" = true ]; then
     printf 'wake drain: acknowledged wakes through %s (%s row(s) consumed), but a newer recovery episode is pending; re-run bin/fm-wake-drain.sh and use the new WAKE_ACK_REQUIRED command\n' \
       "$ACK_THROUGH" "$ACK_REMOVED" >&2
+  elif [ "$ACK_REMOVED" -eq 0 ]; then
+    # Success is said out loud too, so a caller never has to read silence as
+    # confirmation; a replayed acknowledgement is named as one.
+    printf 'wake drain: acknowledged through %s - nothing left to consume (already acknowledged)\n' "$ACK_THROUGH"
+  else
+    printf 'wake drain: acknowledged through %s - %s wake row(s) consumed\n' "$ACK_THROUGH" "$ACK_REMOVED"
   fi
   exit 0
 fi

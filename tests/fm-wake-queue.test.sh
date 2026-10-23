@@ -2177,6 +2177,29 @@ test_stale_ack_that_consumes_nothing_names_the_current_wake() {
   pass "wake drain: an acknowledgement that consumes nothing says so and names the exact command for the current wake"
 }
 
+# A successful acknowledgement says so: silence used to be the only success
+# signal, so a caller could not tell a consumed wake from one never reached.
+test_successful_ack_prints_its_result() {
+  local dir state seq gen
+  dir=$(make_case ack-prints-result)
+  state="$dir/state"
+  append_wake "$state" check first 'check: first wake' || fail "append failed"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" > "$dir/drain.out" 2> "$dir/drain.err" || fail "drain failed"
+  seq=$(sed -n 's/^WAKE_ACK_REQUIRED:.*--ack-through \([0-9][0-9]*\) --recovery-generation .*/\1/p' "$dir/drain.err")
+  gen=$(sed -n 's/^WAKE_ACK_REQUIRED:.*--recovery-generation \([A-Za-z0-9._-][A-Za-z0-9._-]*\)$/\1/p' "$dir/drain.err")
+  [ -n "$seq" ] && [ -n "$gen" ] || fail "drain printed no acknowledgement command"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" --ack-through "$seq" --recovery-generation "$gen" \
+    > "$dir/ack.out" 2> "$dir/ack.err" || fail "acknowledgement failed: $(cat "$dir/ack.err")"
+  grep -Fx "wake drain: acknowledged through $seq - 1 wake row(s) consumed" "$dir/ack.out" >/dev/null \
+    || fail "a successful acknowledgement did not print its result: $(cat "$dir/ack.out" "$dir/ack.err")"
+  [ ! -s "$state/.wake-queue" ] || fail "the acknowledgement left the wake queued"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" --ack-through "$seq" --recovery-generation "$gen" \
+    > "$dir/replay.out" 2> "$dir/replay.err" || fail "a replayed acknowledgement failed: $(cat "$dir/replay.err")"
+  grep -Fx "wake drain: acknowledged through $seq - nothing left to consume (already acknowledged)" "$dir/replay.out" >/dev/null \
+    || fail "a replayed acknowledgement did not say it was already acknowledged: $(cat "$dir/replay.out" "$dir/replay.err")"
+  pass "wake drain: a successful or replayed acknowledgement prints one clear result line"
+}
+
 test_branch_stale_ack_that_consumes_nothing_names_its_granted_wake() {
   local dir state first_seq first_gen second_seq second_gen remedy
   dir=$(make_case branch-stale-ack-current-wake)
@@ -3565,6 +3588,7 @@ test_legacy_generationless_wake_is_adopted
 test_handover_restore_undoes_only_its_own_stop
 test_stale_recovery_generation_cannot_touch_a_newer_episode
 test_stale_ack_that_consumes_nothing_names_the_current_wake
+test_successful_ack_prints_its_result
 test_branch_stale_ack_that_consumes_nothing_names_its_granted_wake
 test_recovery_ack_failure_is_reported
 test_interruption_before_and_after_raw_commit
