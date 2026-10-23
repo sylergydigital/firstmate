@@ -42,8 +42,9 @@
 # invocations in the core bin/ and bin/backends/ scripts so every configured
 # backlog backend follows the same tasks-axi lifecycle path.
 # Without explicit paths, the interpreter-line check also requires every
-# executable bin/ and bin/backends/ script to start with #!/usr/bin/env bash,
-# so hosts without /bin/bash (such as NixOS) can still exec it.
+# executable bin/*.sh and bin/backends/*.sh script to start with
+# #!/usr/bin/env bash, so hosts without /bin/bash (such as NixOS) can still
+# exec it.
 #
 # Lint defaults to two concurrency-limited workers over two stable logical
 # shards, and each worker runs ONE canonical root per ShellCheck process, so a
