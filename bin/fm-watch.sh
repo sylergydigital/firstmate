@@ -2535,18 +2535,18 @@ captain_call_stale_bound() {  # <window-key> <task>
 # included (recorded_pr_reminder_due). The declaration carries the status-log
 # signature, so any newer status event starts a fresh interval; that event
 # reaches firstmate on its own signal wake, not through this stale path.
-# It also carries the task's newest steer and whether it was acknowledged
-# (fm_task_inbox_newest): a steer sent or acted on after the declaration means
-# the worker was put back to work, so the bound is void for that status-log
-# state and a later stale sight alarms, or wedge-escalates, exactly as it did
-# before this bound existed. While the away-posture record exists no reminder is
-# owed at all, as for the captain-call bound: the return brief lists the merge.
+# A steering-inbox record, open or handled, newer than the status log voids the
+# bound, the same rule status_worker_wait_verb applies to a worker's own wait: a
+# steer puts the worker back to work without a status append, so until it
+# appends one a stale sight alarms, or wedge-escalates, exactly as it did before
+# this bound existed. While the away-posture record exists no reminder is owed
+# at all, as for the captain-call bound: the return brief lists the merge.
 # Sets STALE_WAIT_DECLARATION and RECORDED_PR only when the bound applies.
 # Returns 0 to absorb; 1 to alarm (the reminder is due, or the bound does not
 # apply). A first-sight marker that cannot be written alarms as today.
 RECORDED_PR=
 recorded_pr_stale_bound() {  # <window-key> <task>
-  local key=$1 task=$2 last verb pr scope declaration throttle marker
+  local key=$1 task=$2 last verb pr rec declaration throttle
   STALE_WAIT_DECLARATION=
   RECORDED_PR=
   [ -n "$task" ] || return 1
@@ -2555,17 +2555,14 @@ recorded_pr_stale_bound() {  # <window-key> <task>
   [ "$verb" = "done" ] || return 1
   pr=$(fm_meta_get "$STATE/$task.meta" pr)
   [ -n "$pr" ] || return 1
-  scope="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true):"
-  declaration="$scope$(fm_task_inbox_newest "$STATE" "$task")"
-  throttle="$STATE/.paused-resurfaced-$key"
-  marker=$(cat "$throttle" 2>/dev/null || true)
-  case "$marker" in
-    "$declaration") ;;
-    "$scope"*) return 1 ;;
-  esac
+  for rec in "$STATE/$task.inbox"/*.msg "$STATE/$task.inbox/handled"/*.msg; do
+    [ "$rec" -nt "$STATE/$task.status" ] && return 1
+  done
+  declaration="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true)"
   STALE_WAIT_DECLARATION=$declaration
   RECORDED_PR=$pr
-  if [ "$marker" != "$declaration" ]; then
+  throttle="$STATE/.paused-resurfaced-$key"
+  if [ "$(cat "$throttle" 2>/dev/null || true)" != "$declaration" ]; then
     printf '%s' "$declaration" 2>/dev/null > "$throttle" || return 1
     return 0
   fi

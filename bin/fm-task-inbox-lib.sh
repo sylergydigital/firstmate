@@ -426,27 +426,6 @@ fm_task_inbox_oldest_unhandled() {  # <state-dir> <task-id>
   printf '%s' "$best"
 }
 
-# The newest record ever enqueued for a task, as "<name>:open" while it waits in
-# the inbox root or "<name>:handled" once acknowledged, or nothing for a task
-# never steered. A later steer, or the acknowledgement of this one, changes it.
-fm_task_inbox_newest() {  # <state-dir> <task-id>
-  local dir best='' best_n=0 where='' d f n
-  dir=$(fm_task_inbox_dir "$1" "$2")
-  for d in "$dir" "$dir/handled"; do
-    for f in "$d"/*.msg; do
-      [ -e "$f" ] || continue
-      n=$(fm_task_inbox_seq_of "${f##*/}") || continue
-      if [ -z "$best" ] || [ "$n" -gt "$best_n" ]; then
-        best=${f##*/}
-        best_n=$n
-        if [ "$d" = "$dir" ]; then where=open; else where=handled; fi
-      fi
-    done
-  done
-  [ -n "$best" ] || return 0
-  printf '%s:%s' "$best" "$where"
-}
-
 # Owe a fire-and-forget record its one retry ring (see the header). A newer
 # mark replaces an older one: a ring names the whole inbox, not one record.
 fm_task_inbox_mark_retry() {  # <state-dir> <task-id> <record-path>

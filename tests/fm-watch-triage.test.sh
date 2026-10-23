@@ -4807,26 +4807,22 @@ test_recorded_pr_never_reminds_while_away() {
 
 # Steering a finished worker puts it back to work with no status append, so the
 # status-log signature alone cannot tell rework from the wait the bound absorbs.
-# A steer the worker acknowledged after the bound started voids it: when the
-# rework then stops silently, every new pane hash alarms as it did without the
-# bound, with the plain stale reason rather than a merge reminder.
-test_recorded_pr_steer_voids_the_bound() {
-  local dir state out capture round reason
-  dir=$(make_pr_home recorded-pr-steered 'done: PR https://example.invalid/pull/7 checks green') \
-    || fail "could not build a recorded-PR fixture"
-  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+# A steering-inbox record newer than the status log voids the bound, whatever
+# the re-surface marker holds: when the rework then stops silently, every new
+# pane hash alarms as it did without the bound, with the plain stale reason
+# rather than a merge reminder. The three cases differ only in what the marker
+# holds when the steer lands.
+write_handled_steer() {  # <state>
+  mkdir -p "$1/held-merge.inbox/handled"
+  printf 'schema=fm-task-inbox.v1\n--\nrename the flag before the merge\n' \
+    > "$1/held-merge.inbox/handled/001.msg"
+}
 
-  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
-    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
-  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed before any steer"
-
-  mkdir -p "$state/held-merge.inbox/handled"
-  printf 'schema=fm-task-inbox.v1\n--\nrename the flag before the merge\n' > "$state/held-merge.inbox/001.msg"
-  mv "$state/held-merge.inbox/001.msg" "$state/held-merge.inbox/handled/001.msg"
-
-  round=1
-  while [ "$round" -le 2 ]; do
-    hold_watch_surface "$dir" "$out" "$capture" "idle, rework stopped ${round}" \
+# <rounds> new pane hashes after the steer, each of which must alarm once, plainly.
+steered_stall_alarms() {  # <dir> <rounds>
+  local dir=$1 rounds=$2 state="$1/state" round=1 reason
+  while [ "$round" -le "$rounds" ]; do
+    hold_watch_surface "$dir" "$dir/watch.out" "$dir/pane.txt" "idle, rework stopped ${round}" \
       || fail "a steered worker's silent stall was absorbed as a recorded-PR wait on round $round"
     [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "round $round of a steered stall did not alarm exactly once"
     reason=$(awk -F '\t' '$3 == "stale" { print $5 }' "$state/.wake-queue")
@@ -4835,7 +4831,73 @@ test_recorded_pr_steer_voids_the_bound() {
     ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge round $round"
     round=$((round + 1))
   done
+}
+
+# The marker still holds the recorded-PR declaration the first sight wrote.
+test_recorded_pr_steer_voids_the_bound() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-steered 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed before any steer"
+
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 2
   pass "a steer after the recorded-PR bound started voids it, so a silent rework stall alarms"
+}
+
+# The captain-hold lifecycle: the call's first alarm replaced the marker with its
+# own declaration, then the captain asked for a change, so firstmate released
+# the call and steered the worker, which acted on it and stopped with no status.
+test_recorded_pr_steer_after_released_captain_call_alarms() {
+  local dir state out capture
+  command -v tasks-axi >/dev/null 2>&1 \
+    || { echo "skip: tasks-axi not found (recorded PR after a released captain call)"; return 0; }
+  dir=$(make_hold_home recorded-pr-released 'done: PR https://example.invalid/pull/7 checks green' nohold) \
+    || fail "could not build an unheld backlog fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  printf 'pr=https://example.invalid/pull/7\n' >> "$state/held-merge.meta"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed"
+
+  run_hold "$dir" hold held-merge --reason 'awaiting the captain on the merge' \
+    || fail "could not hold the task for the captain"
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, held 1' \
+    || fail "the captain call's first sight did not surface"
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "the captain call's first sight did not alarm exactly once"
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the captain call's first sight"
+
+  printf 'rename the flag first\n' > "$dir/decision.txt"
+  run_hold "$dir" answer held-merge --decision-file "$dir/decision.txt" --release \
+    || fail "could not record the captain's answer"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+  pass "a steer after a released captain call voids the recorded-PR bound, so a silent rework stall alarms"
+}
+
+# The first terminal sight alarmed before the PR was recorded, so the stable pane
+# never wrote a recorded-PR declaration for the steer to differ from.
+test_recorded_pr_recorded_after_first_alarm_steer_alarms() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-late 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  printf 'window=test:fm-held-merge\nkind=ship\nharness=grok\nbackend=tmux\n' > "$state/held-merge.meta"
+
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, elapsed 1s' \
+    || fail "a finished worker with no recorded PR did not alarm on first sight"
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "the unrecorded first sight did not alarm exactly once"
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the unrecorded first sight"
+
+  printf 'pr=https://example.invalid/pull/7\n' >> "$state/held-merge.meta"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+  pass "a steer after the PR is recorded voids the bound even when no declaration was ever written"
 }
 
 test_recorded_pr_keeps_other_verbs_alarming() {
@@ -7453,6 +7515,8 @@ test_recorded_pr_bounds_finished_worker_stale
 test_recorded_pr_keeps_other_verbs_alarming
 test_recorded_pr_never_reminds_while_away
 test_recorded_pr_steer_voids_the_bound
+test_recorded_pr_steer_after_released_captain_call_alarms
+test_recorded_pr_recorded_after_first_alarm_steer_alarms
 test_secondmate_paused_resurfaces_in_normal_mode
 test_secondmate_captain_held_resurfaces_in_normal_mode
 test_secondmate_nonpaused_stale_remains_suppressed

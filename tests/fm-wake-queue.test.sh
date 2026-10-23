@@ -2200,6 +2200,31 @@ test_successful_ack_prints_its_result() {
   pass "wake drain: a successful or replayed acknowledgement prints one clear result line"
 }
 
+# The empty-queue acknowledgement a recovery episode asks for consumes no row,
+# but it is not a replay: it is the call that retires the episode, and its
+# result says so. Only repeating it reports an earlier acknowledgement.
+test_recovery_only_ack_names_the_retired_episode() {
+  local dir state generation
+  dir=$(make_case recovery-only-ack)
+  state="$dir/state"
+  printf 'pending:handling:fixture\n' > "$state/.watcher-down"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" > "$dir/initial.out" 2> "$dir/initial.err" \
+    || fail "initial recovery drain failed"
+  generation=$(sed -n 's/^WAKE_ACK_REQUIRED:.*--ack-through 0 --recovery-generation \([A-Za-z0-9._-][A-Za-z0-9._-]*\)$/\1/p' "$dir/initial.err")
+  [ -n "$generation" ] || fail "initial recovery drain omitted its generation"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" --ack-through 0 --recovery-generation "$generation" \
+    > "$dir/ack.out" 2> "$dir/ack.err" || fail "recovery acknowledgement failed: $(cat "$dir/ack.err")"
+  grep -Fx "wake drain: acknowledged through 0 - no wake rows to consume; recovery episode $generation acknowledged" "$dir/ack.out" >/dev/null \
+    || fail "a recovery-only acknowledgement did not name the episode it retired: $(cat "$dir/ack.out" "$dir/ack.err")"
+  [ "$(cat "$state/.watcher-down")" = "acked:handling:$generation" ] \
+    || fail "the recovery-only acknowledgement did not retire its episode"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" --ack-through 0 --recovery-generation "$generation" \
+    > "$dir/replay.out" 2> "$dir/replay.err" || fail "a replayed recovery acknowledgement failed: $(cat "$dir/replay.err")"
+  grep -Fx "wake drain: acknowledged through 0 - nothing left to consume (already acknowledged)" "$dir/replay.out" >/dev/null \
+    || fail "a replayed recovery acknowledgement did not say it was already acknowledged: $(cat "$dir/replay.out" "$dir/replay.err")"
+  pass "wake drain: a recovery-only acknowledgement names the episode it retired, and only its replay is already acknowledged"
+}
+
 test_branch_stale_ack_that_consumes_nothing_names_its_granted_wake() {
   local dir state first_seq first_gen second_seq second_gen remedy
   dir=$(make_case branch-stale-ack-current-wake)
@@ -3589,6 +3614,7 @@ test_handover_restore_undoes_only_its_own_stop
 test_stale_recovery_generation_cannot_touch_a_newer_episode
 test_stale_ack_that_consumes_nothing_names_the_current_wake
 test_successful_ack_prints_its_result
+test_recovery_only_ack_names_the_retired_episode
 test_branch_stale_ack_that_consumes_nothing_names_its_granted_wake
 test_recovery_ack_failure_is_reported
 test_interruption_before_and_after_raw_commit
