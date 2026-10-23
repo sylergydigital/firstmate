@@ -55,7 +55,8 @@
 #                          "blocked-on-prompt:" and the picker's name, after the
 #                          demand-deep-inspection clause when that clause is
 #                          present; a plain stale reason gains the parenthetical
-#                          to carry the name, and no other reason carries it: the
+#                          to carry the name, the recorded-PR reminder ends its
+#                          own with it, and no other reason carries it: the
 #                          deferral, dead-record and declared-wait recheck
 #                          reasons below keep their wording.
 #                          Unless afk is active. A pane about to escalate
@@ -2344,11 +2345,11 @@ clear_dialog_suffix() {  # <task>
   rm -f "$STATE/.subsuper-dialog-$key"
 }
 
-# Name a blocking dialog on a plain stale reason or the final wedge escalation,
-# the only two reasons that carry it. The name stays inside the one
-# parenthetical, after every clause already there, because the away daemon
-# matches "idle *s, possible wedge, escalation *" as a prefix. A reason with no
-# parenthetical gains one.
+# Name a blocking dialog on a plain stale reason, the recorded-PR reminder, or
+# the final wedge escalation, the only reasons that carry it. The name stays
+# inside the one parenthetical, after every clause already there, because the
+# away daemon matches "idle *s, possible wedge, escalation *" as a prefix. A
+# reason with no parenthetical gains one.
 stale_reason_naming_dialog() {  # <reason> [dialog-name]
   local reason=$1 name=${2-}
   [ -n "$name" ] || { printf '%s' "$reason"; return 0; }
@@ -2534,12 +2535,18 @@ captain_call_stale_bound() {  # <window-key> <task>
 # included (recorded_pr_reminder_due). The declaration carries the status-log
 # signature, so any newer status event starts a fresh interval; that event
 # reaches firstmate on its own signal wake, not through this stale path.
+# It also carries the task's newest steer and whether it was acknowledged
+# (fm_task_inbox_newest): a steer sent or acted on after the declaration means
+# the worker was put back to work, so the bound is void for that status-log
+# state and a later stale sight alarms, or wedge-escalates, exactly as it did
+# before this bound existed. While the away-posture record exists no reminder is
+# owed at all, as for the captain-call bound: the return brief lists the merge.
 # Sets STALE_WAIT_DECLARATION and RECORDED_PR only when the bound applies.
 # Returns 0 to absorb; 1 to alarm (the reminder is due, or the bound does not
 # apply). A first-sight marker that cannot be written alarms as today.
 RECORDED_PR=
 recorded_pr_stale_bound() {  # <window-key> <task>
-  local key=$1 task=$2 last verb pr declaration throttle
+  local key=$1 task=$2 last verb pr scope declaration throttle marker
   STALE_WAIT_DECLARATION=
   RECORDED_PR=
   [ -n "$task" ] || return 1
@@ -2548,14 +2555,21 @@ recorded_pr_stale_bound() {  # <window-key> <task>
   [ "$verb" = "done" ] || return 1
   pr=$(fm_meta_get "$STATE/$task.meta" pr)
   [ -n "$pr" ] || return 1
-  declaration="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true)"
+  scope="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true):"
+  declaration="$scope$(fm_task_inbox_newest "$STATE" "$task")"
+  throttle="$STATE/.paused-resurfaced-$key"
+  marker=$(cat "$throttle" 2>/dev/null || true)
+  case "$marker" in
+    "$declaration") ;;
+    "$scope"*) return 1 ;;
+  esac
   STALE_WAIT_DECLARATION=$declaration
   RECORDED_PR=$pr
-  throttle="$STATE/.paused-resurfaced-$key"
-  if [ "$(cat "$throttle" 2>/dev/null || true)" != "$declaration" ]; then
+  if [ "$marker" != "$declaration" ]; then
     printf '%s' "$declaration" 2>/dev/null > "$throttle" || return 1
     return 0
   fi
+  away_record_present && return 0
   stale_wait_throttled "$key" "$declaration"
 }
 
@@ -3929,9 +3943,9 @@ EOF
               if [ -n "$RECORDED_PR" ]; then
                 stale_reason=$(recorded_pr_stale_reason "$w" "$task")
               else
-                stale_reason=$(stale_reason_naming_dialog "stale: $w" "$dialog")
+                stale_reason="stale: $w"
               fi
-              surface_terminal_stale "$w" "$h" "$stale_reason"
+              surface_terminal_stale "$w" "$h" "$(stale_reason_naming_dialog "$stale_reason" "$dialog")"
             fi
           elif [ -e "$ssf" ] \
             || { [ "$FM_WEDGE_MAX_ESCALATIONS" -gt 0 ] && [ -e "$STATE/.wedge-permanent-$key" ]; }; then
@@ -3955,7 +3969,8 @@ EOF
             && [ -n "$RECORDED_PR" ]; then
             # The same hash, absorbed by the recorded-PR bound, has reached its
             # interval with nothing newer: the one reminder it owes.
-            surface_terminal_stale "$w" "$h" "$(recorded_pr_stale_reason "$w" "$task")"
+            surface_terminal_stale "$w" "$h" \
+              "$(stale_reason_naming_dialog "$(recorded_pr_stale_reason "$w" "$task")" "$dialog")"
           fi
           # else: already surfaced as genuinely terminal on a prior poll of
           # this same hash - nothing left to do (matches the original,
