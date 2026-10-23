@@ -1,0 +1,45 @@
+### Final lab data/backlog.md after every live scenario (base-commit row removed after its before-fix capture)
+# Backlog
+
+## In flight
+## Queued
+## Done
+- [x] lab-scout-site - Lab scout builds a protected site data/lab-scout-site/report.md (repo: sample) (kind: scout) (reported 2026-10-23)
+- [x] lab-held-replay-pr - Lab ship task lab-held-replay-pr (repo: sample) (kind: ship) (done 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+  Resolution recorded by fm-captain-hold.
+  Decision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69
+  Resolution mode: answered
+
+  Captain decision:
+  Leave the closed pull request closed.
+  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+
+- [x] lab-held-closed-pr - Lab ship task lab-held-closed-pr (repo: sample) (kind: ship) (done 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+  Resolution recorded by fm-captain-hold.
+  Decision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69
+  Resolution mode: answered
+
+  Captain decision:
+  Leave the closed pull request closed.
+
+  Deliverable of the finished work: PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+
+- [x] lab-closed-pr - Lab ship task lab-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+- [x] lab-hung-pr - Lab ship task lab-hung-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+- [x] lab-unreadable-pr - Lab ship task lab-unreadable-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+- [x] lab-open-pr - Lab ship task lab-open-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7676
+- [x] lab-merged-pr - Lab ship task lab-merged-pr https://github.com/kunchenguid/firstmate/pull/7662 (repo: sample) (kind: ship) (merged 2026-10-23)
+- [x] lab-audit-closed-pr - Lab ship task lab-audit-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+
+### Lab state/ leftovers
+.last-watcher-beat
+home-summary.json
+lab-held-replay-pr.backlog-close
+lab-held-replay-pr.meta
+lab-held-replay-pr.status
+terminal-outcomes

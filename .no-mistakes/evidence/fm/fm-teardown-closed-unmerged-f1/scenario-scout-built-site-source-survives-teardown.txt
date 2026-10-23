@@ -1,0 +1,56 @@
+### Scenario: a scout's built-site source kept under data/<id>/ (the new brief rule) survives teardown; the worktree-only copy does not
+--- before teardown
+worktree copy (the audit's failure mode):
+/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample/site-upload/index.html
+task data copy (where the new rule 2 puts it):
+/tmp/fm-lab.zIlNjy/data/lab-scout-site/site/index.html
+--- fm-captain-hold.sh complete lab-scout-site --none
+complete: lab-scout-site captain-call inventory reviewed
+--- teardown lab-scout-site exit=0 elapsed=5s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+teardown lab-scout-site complete (window firstmate:fm-lab-scout-site, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-scout-site is closed in /tmp/fm-lab.zIlNjy/data/backlog.md. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+teardown: reaping leaked worktree process(es) for lab-scout-site: 302640
+teardown: force-killing leaked worktree process(es) for lab-scout-site: 302640
+--- after teardown
+worktree copy:
+ls: cannot access '/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample/site-upload': No such file or directory
+task data copy:
+/tmp/fm-lab.zIlNjy/data/lab-scout-site/site/index.html
+<!doctype html>
+<meta charset="utf-8">
+<title>Protected site</title>
+<h1>Protected Pages site v1</h1>
+--- backlog row line (data/backlog.md)
+6:- [x] lab-scout-site - Lab scout builds a protected site data/lab-scout-site/report.md (repo: sample) (kind: scout) (reported 2026-10-23)
+7-- [x] lab-held-replay-pr - Lab ship task lab-held-replay-pr (repo: sample) (kind: ship) (done 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+8-  Resolution recorded by fm-captain-hold.
+--- tasks-axi show lab-scout-site --full
+task:
+  id: lab-scout-site
+  title: Lab scout builds a protected site data/lab-scout-site/report.md
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "-"
+  hold_kind: "-"
+  hold_until: "-"
+  kind: scout
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: "report:data/lab-scout-site/report.md"
+  body: ""
+--- leftover state
+(no lab-scout-site task record or pending-close record left in state/)
+--- lab tmux window fm-lab-scout-site
+(window fm-lab-scout-site closed)

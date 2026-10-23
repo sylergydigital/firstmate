@@ -1,0 +1,43 @@
+### Scenario: forge read fails (GH_TOKEN rejected by GitHub) for MERGED PR kunchenguid/firstmate#7662
+prepared lab-unreadable-pr worktree=/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample pr=https://github.com/kunchenguid/firstmate/pull/7662
+--- teardown lab-unreadable-pr exit=0 elapsed=8s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+sample: already current
+teardown lab-unreadable-pr complete (window firstmate:fm-lab-unreadable-pr, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-unreadable-pr is closed in /tmp/fm-lab.zIlNjy/data/backlog.md. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+warning: the forge did not confirm https://github.com/kunchenguid/firstmate/pull/7662 merged (its state could not be read); the backlog close for lab-unreadable-pr records it as unconfirmed, not merged
+teardown: reaping leaked worktree process(es) for lab-unreadable-pr: 3794825
+teardown: force-killing leaked worktree process(es) for lab-unreadable-pr: 3794825
+--- backlog row line (data/backlog.md)
+7:- [x] lab-unreadable-pr - Lab ship task lab-unreadable-pr (repo: sample) (kind: ship) (done 2026-10-23)
+8-  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+9-- [x] lab-open-pr - Lab ship task lab-open-pr (repo: sample) (kind: ship) (done 2026-10-23)
+--- tasks-axi show lab-unreadable-pr --full
+task:
+  id: lab-unreadable-pr
+  title: Lab ship task lab-unreadable-pr
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "-"
+  hold_kind: "-"
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: none
+  body: "PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662"
+--- leftover state
+(no lab-unreadable-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-unreadable-pr
+(window fm-lab-unreadable-pr closed)

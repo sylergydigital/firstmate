@@ -1,0 +1,75 @@
+### Scenario: captain-held ship task whose PR (sylergydigital/silsila#781) closed unmerged - teardown retains, captain answers
+prepared lab-held-closed-pr worktree=/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample pr=https://github.com/sylergydigital/silsila/pull/781
+--- fm-captain-hold.sh hold
+lab-held-closed-pr
+hold rc=0
+--- teardown lab-held-closed-pr exit=0 elapsed=6s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+sample: already current
+teardown lab-held-closed-pr complete (window firstmate:fm-lab-held-closed-pr, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-held-closed-pr stays open in /tmp/fm-lab.zIlNjy/data/backlog.md, still held for the captain with its deliverable recorded. Relay the question and close it only with bin/fm-captain-hold.sh answer.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+teardown: reaping leaked worktree process(es) for lab-held-closed-pr: 131994
+teardown: force-killing leaked worktree process(es) for lab-held-closed-pr: 131994
+--- backlog row line (data/backlog.md)
+5:- [ ] lab-held-closed-pr - Lab ship task lab-held-closed-pr (repo: sample) (kind: ship) (since 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+6-  Captain hold set: 2026-10-23T09:40:08Z
+7-
+--- tasks-axi show lab-held-closed-pr --full
+task:
+  id: lab-held-closed-pr
+  title: Lab ship task lab-held-closed-pr
+  state: queued
+  blocked: no
+  blocked_by: none
+  held: yes
+  hold_reason: "fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS"
+  hold_kind: captain
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: 2026-10-23
+  closed: "-"
+  deps: none
+  links: none
+  body: "Captain hold set: 2026-10-23T09:40:08Z\n\nDeliverable of the finished work: PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781"
+--- leftover state
+(no lab-held-closed-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-held-closed-pr
+(window fm-lab-held-closed-pr closed)
+--- fm-captain-hold.sh answer
+answered: lab-held-closed-pr
+answer rc=0
+--- backlog row line (data/backlog.md)
+6:- [x] lab-held-closed-pr - Lab ship task lab-held-closed-pr (repo: sample) (kind: ship) (done 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+7-  Resolution recorded by fm-captain-hold.
+8-  Decision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69
+--- tasks-axi show lab-held-closed-pr --full
+task:
+  id: lab-held-closed-pr
+  title: Lab ship task lab-held-closed-pr
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS"
+  hold_kind: captain
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: none
+  body: "Resolution recorded by fm-captain-hold.\nDecision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69\nResolution mode: answered\n\nCaptain decision:\nLeave the closed pull request closed.\n\nDeliverable of the finished work: PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781"
+--- leftover state
+(no lab-held-closed-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-held-closed-pr
+(window fm-lab-held-closed-pr closed)

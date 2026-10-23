@@ -1,0 +1,49 @@
+### BEFORE THE FIX (base commit a7c1b963 bin/fm-teardown.sh): audit PR sylergydigital/silsila#781 (GitHub reports CLOSED, merged=false)
+prepared lab-base-audit-pr worktree=/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample pr=https://github.com/sylergydigital/silsila/pull/781
+--- teardown lab-base-audit-pr exit=0 elapsed=7s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+sample: already current
+teardown lab-base-audit-pr complete (window firstmate:fm-lab-base-audit-pr, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-base-audit-pr is closed in /tmp/fm-lab.zIlNjy/data/backlog.md. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+●  WATCHER DOWN - SUPERVISION IS OFF
+●  1 task(s) in flight, but no watcher has a fresh beacon (last beat: 460s ago, grace 300s).
+●  Trust the emitted supervision protocol for this harness; do not use shell & for watcher repair.
+●  This is a supervision warning only; the guarded operation WILL still run.
+●  watcher supervision needs Stop-owned automatic recovery; inspect the hook registration and startup status before ending the turn.
+●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+teardown: reaping leaked worktree process(es) for lab-base-audit-pr: 4116996
+teardown: force-killing leaked worktree process(es) for lab-base-audit-pr: 4116996
+--- backlog row line (data/backlog.md)
+7:- [x] lab-base-audit-pr - Lab ship task lab-base-audit-pr https://github.com/sylergydigital/silsila/pull/781 (repo: sample) (kind: ship) (merged 2026-10-23)
+8-- [x] lab-hung-pr - Lab ship task lab-hung-pr (repo: sample) (kind: ship) (done 2026-10-23)
+9-  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+--- tasks-axi show lab-base-audit-pr --full
+task:
+  id: lab-base-audit-pr
+  title: "Lab ship task lab-base-audit-pr https://github.com/sylergydigital/silsila/pull/781"
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "-"
+  hold_kind: "-"
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: "pr:https://github.com/sylergydigital/silsila/pull/781"
+  body: ""
+--- leftover state
+(no lab-base-audit-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-base-audit-pr
+(window fm-lab-base-audit-pr closed)

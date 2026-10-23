@@ -1,0 +1,43 @@
+### AFTER THE FIX (target commit 2e7d7f46 bin/fm-teardown.sh): audit PR sylergydigital/silsila#781 (GitHub reports CLOSED, merged=false)
+live GitHub read: {"merged":false,"state":"CLOSED"}
+prepared lab-closed-pr worktree=/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample pr=https://github.com/sylergydigital/silsila/pull/781
+--- teardown lab-closed-pr exit=0 elapsed=5s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+sample: already current
+teardown lab-closed-pr complete (window firstmate:fm-lab-closed-pr, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-closed-pr is closed in /tmp/fm-lab.zIlNjy/data/backlog.md. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+teardown: reaping leaked worktree process(es) for lab-closed-pr: 4172620
+teardown: force-killing leaked worktree process(es) for lab-closed-pr: 4172620
+--- backlog row line (data/backlog.md)
+7:- [x] lab-closed-pr - Lab ship task lab-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+8-  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+9-- [x] lab-base-audit-pr - Lab ship task lab-base-audit-pr https://github.com/sylergydigital/silsila/pull/781 (repo: sample) (kind: ship) (merged 2026-10-23)
+--- tasks-axi show lab-closed-pr --full
+task:
+  id: lab-closed-pr
+  title: Lab ship task lab-closed-pr
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "-"
+  hold_kind: "-"
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: none
+  body: "PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781"
+--- leftover state
+(no lab-closed-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-closed-pr
+(window fm-lab-closed-pr closed)

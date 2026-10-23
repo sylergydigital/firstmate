@@ -1,0 +1,39 @@
+### bin/fm-brief.sh output in a lab home - the emitted brief a worker receives
+
+=== BEFORE (base a7c1b963) scout brief: data/lab-scout-site-base/brief.md, Setup tail + Rules 1-3
+This is a SCOUT task: the deliverable is a written report, not a PR.
+The worktree is your laboratory - install, run, edit, and make scratch commits freely; all of it is discarded at teardown.
+The report is the only thing that survives, so anything worth keeping must be in it.
+
+# Rules
+1. Never push to any remote and never open a PR.
+2. Stay inside this worktree; the only files you may write outside it are the report and the status file below.
+3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.
+
+=== AFTER (target 2e7d7f46) scout brief: data/lab-scout-site/brief.md, Setup tail + Rules 1-3
+This is a SCOUT task: the deliverable is a written report, not a PR.
+The worktree is your laboratory - install, run, edit, and make scratch commits freely; all of it is discarded at teardown.
+Only the report and a built artefact's source kept as rule 2 says survive, so anything else worth keeping must be in the report.
+
+# Rules
+1. Never push to any remote and never open a PR.
+2. Stay inside this worktree; the only files you may write outside it are the report, the status file below, and a built artefact's source.
+   When the deliverable includes a built artefact, such as a static site deployed from a folder, keep its source under `/tmp/fm-lab.zIlNjy/data/lab-scout-site/` beside the report, never only in this disposable worktree, which cleanup deletes.
+3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.
+
+=== BEFORE (base a7c1b963) ship brief (--mode no-mistakes): data/lab-ship-site-base/brief.md, Setup tail + Rules 1-3
+# Rules
+1. Never push to the default branch. Never merge a PR.
+2. Keep project edits inside this worktree; keep proof and scratch output outside it, under `/tmp/fm-lab.zIlNjy/data/lab-ship-site-base/` or a temporary directory.
+   Outside the worktree, write only that task material and the status and steering-inbox records authorized below.
+   Leave the worktree clean before reporting done.
+3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.
+
+=== AFTER (target 2e7d7f46) ship brief (--mode no-mistakes): data/lab-ship-site/brief.md, Setup tail + Rules 1-3
+# Rules
+1. Never push to the default branch. Never merge a PR.
+2. Keep project edits inside this worktree; keep proof and scratch output outside it, under `/tmp/fm-lab.zIlNjy/data/lab-ship-site/` or a temporary directory.
+   When the deliverable is a built artefact rather than a PR, such as a static site deployed from a folder, keep its source under `/tmp/fm-lab.zIlNjy/data/lab-ship-site/` too, never only in this disposable worktree, which cleanup deletes.
+   Outside the worktree, write only that task material and the status and steering-inbox records authorized below.
+   Leave the worktree clean before reporting done.
+3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.

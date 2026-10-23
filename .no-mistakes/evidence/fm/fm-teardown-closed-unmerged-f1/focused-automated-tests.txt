@@ -1,0 +1,21 @@
+=== fm-teardown.test.sh: test_teardown_records_a_closed_unmerged_pr_as_closed test_teardown_records_an_unconfirmed_pr_as_unconfirmed test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note test_teardown_closes_a_gitlab_task_with_its_merge_request_url_as_a_note
+ok - teardown records a GitHub or Forgejo PR closed without merging as closed, never as merged
+ok - teardown records a PR whose state is unreadable, still open, or not answered in time as unconfirmed with a warning, never as merged
+ok - teardown closes a landed Gerrit task with its change URL as a note and a GitHub task with --pr
+ok - teardown closes a landed GitLab task with its merge request URL as a note and GitHub and Forgejo tasks with --pr
+exit=0
+=== fm-backlog-atomicity.test.sh: test_recovery_replays_a_closed_unmerged_close_idempotently
+ok - a replayed closed-unmerged close records its PR once, never as merged
+exit=0
+=== fm-captain-hold-lifecycle.test.sh: test_answer_before_cleanup_replay_notes_a_retained_gerrit_change
+ok - an answer before cleanup replay notes the retained Gerrit change and closed-unmerged pull request
+exit=0
+=== fm-bearings-snapshot.test.sh: test_landed_excludes_closed_unmerged_and_marks_unconfirmed_prs
+ok - Recently Landed drops closed-unmerged PRs and marks unconfirmed merges in every home
+exit=0
+=== fm-brief.test.sh: test_ship_and_scout_keep_built_artefact_sources_in_task_data
+ok - fm-brief.sh: ship and scout briefs keep a built artefact's source in the task's data directory
+exit=0
+=== fm-task-delivery.test.sh: test_promotion_delivers_the_real_definition_of_done
+ok - fm-promote: a promoted worker receives the same mode-specific delivery contract a briefed one does
+exit=0

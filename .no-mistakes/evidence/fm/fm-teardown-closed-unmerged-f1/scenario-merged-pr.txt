@@ -1,0 +1,42 @@
+### Scenario: merged PR kunchenguid/firstmate#7662 (GitHub reports MERGED)
+prepared lab-merged-pr worktree=/tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample pr=https://github.com/kunchenguid/firstmate/pull/7662
+--- teardown lab-merged-pr exit=0 elapsed=5s
+--- stdout
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+🌳 Worktree returned to pool.
+sample: already current
+teardown lab-merged-pr complete (window firstmate:fm-lab-merged-pr, worktree /tmp/fm-lab.zIlNjy/treehouse/.treehouse/sample-809965/1/sample)
+Backlog: lab-merged-pr is closed in /tmp/fm-lab.zIlNjy/data/backlog.md. Run bin/fm-tasks-axi.sh ready for dependency-cleared candidates, check date gates, and dispatch only work whose blockers are gone and date is due.
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+teardown: reaping leaked worktree process(es) for lab-merged-pr: 3746900
+teardown: force-killing leaked worktree process(es) for lab-merged-pr: 3746900
+--- backlog row line (data/backlog.md)
+7:- [x] lab-merged-pr - Lab ship task lab-merged-pr https://github.com/kunchenguid/firstmate/pull/7662 (repo: sample) (kind: ship) (merged 2026-10-23)
+8-- [x] lab-audit-closed-pr - Lab ship task lab-audit-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+9-  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+--- tasks-axi show lab-merged-pr --full
+task:
+  id: lab-merged-pr
+  title: "Lab ship task lab-merged-pr https://github.com/kunchenguid/firstmate/pull/7662"
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "-"
+  hold_kind: "-"
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: "pr:https://github.com/kunchenguid/firstmate/pull/7662"
+  body: ""
+--- leftover state
+(no lab-merged-pr task record or pending-close record left in state/)
+--- lab tmux window fm-lab-merged-pr
+(window fm-lab-merged-pr closed)

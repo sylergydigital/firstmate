@@ -1,0 +1,54 @@
+### Lab backlog (data/backlog.md) written by the real teardowns above
+# Backlog
+
+## In flight
+## Queued
+
+## Done
+- [x] lab-closed-pr - Lab ship task lab-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+- [x] lab-hung-pr - Lab ship task lab-hung-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+- [x] lab-unreadable-pr - Lab ship task lab-unreadable-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662
+- [x] lab-open-pr - Lab ship task lab-open-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7676
+- [x] lab-merged-pr - Lab ship task lab-merged-pr https://github.com/kunchenguid/firstmate/pull/7662 (repo: sample) (kind: ship) (merged 2026-10-23)
+- [x] lab-audit-closed-pr - Lab ship task lab-audit-closed-pr (repo: sample) (kind: ship) (done 2026-10-23)
+  PR closed unmerged: https://github.com/sylergydigital/silsila/pull/781
+
+### bin/fm-bearings-snapshot.sh --all-landed (default TOON, agent-facing) - landed section
+landed[4]{id,what,artifact,owner}:
+  lab-unreadable-pr,Lab ship task lab-unreadable-pr,"PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662",(main)
+  lab-open-pr,Lab ship task lab-open-pr,"PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7676",(main)
+  lab-merged-pr,Lab ship task lab-merged-pr,"https://github.com/kunchenguid/firstmate/pull/7662",(main)
+  lab-hung-pr,Lab ship task lab-hung-pr,"PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662",(main)
+gates: []
+
+### bin/fm-bearings-snapshot.sh --json --all-landed | jq .landed
+[
+  {
+    "id": "lab-unreadable-pr",
+    "what": "Lab ship task lab-unreadable-pr",
+    "artifact": "PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662",
+    "owner": "(main)"
+  },
+  {
+    "id": "lab-open-pr",
+    "what": "Lab ship task lab-open-pr",
+    "artifact": "PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7676",
+    "owner": "(main)"
+  },
+  {
+    "id": "lab-merged-pr",
+    "what": "Lab ship task lab-merged-pr",
+    "artifact": "https://github.com/kunchenguid/firstmate/pull/7662",
+    "owner": "(main)"
+  },
+  {
+    "id": "lab-hung-pr",
+    "what": "Lab ship task lab-hung-pr",
+    "artifact": "PR merge unconfirmed: https://github.com/kunchenguid/firstmate/pull/7662",
+    "owner": "(main)"
+  }
+]

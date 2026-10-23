@@ -1,0 +1,84 @@
+### Scenario: captain answers a held closed-unmerged PR task before an interrupted cleanup is replayed
+plain git worktree (not leased from treehouse, so the real treehouse return refuses it): /tmp/fm-lab.zIlNjy/projects/lab-held-replay-pr
+--- fm-captain-hold.sh hold
+lab-held-replay-pr
+--- teardown lab-held-replay-pr exit=1 elapsed=4s
+--- stdout
+--- stderr
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zIlNjy
+teardown: reaping leaked worktree process(es) for lab-held-replay-pr: 172797
+teardown: force-killing leaked worktree process(es) for lab-held-replay-pr: 172797
+A new version of treehouse is available: v2.1.0 → v3.1.5
+Run "treehouse update" to update
+
+worktree /tmp/fm-lab.zIlNjy/projects/lab-held-replay-pr is not managed by treehouse
+error: treehouse return failed for worktree /tmp/fm-lab.zIlNjy/projects/lab-held-replay-pr; teardown aborted
+--- pending-close record left by the interrupted cleanup (state/lab-held-replay-pr.backlog-close)
+id=lab-held-replay-pr
+data=/tmp/fm-lab.zIlNjy/data
+spawn_gen=lab-lab-held-replay-pr
+cleanup_incomplete=0
+mode=retain
+arg=--closed-pr
+arg=https://github.com/sylergydigital/silsila/pull/781
+--- backlog row line (data/backlog.md)
+4:- [ ] lab-held-replay-pr - Lab ship task lab-held-replay-pr (repo: sample) (kind: ship) (since 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+5-  Captain hold set: 2026-10-23T09:40:34Z
+6-## Queued
+--- tasks-axi show lab-held-replay-pr --full
+task:
+  id: lab-held-replay-pr
+  title: Lab ship task lab-held-replay-pr
+  state: in_flight
+  blocked: no
+  blocked_by: none
+  held: yes
+  hold_reason: "fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS"
+  hold_kind: captain
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: 2026-10-23
+  closed: "-"
+  deps: none
+  links: none
+  body: "Captain hold set: 2026-10-23T09:40:34Z"
+--- leftover state
+lab-held-replay-pr.backlog-close
+lab-held-replay-pr.meta
+lab-held-replay-pr.status
+--- lab tmux window fm-lab-held-replay-pr
+(window fm-lab-held-replay-pr closed)
+--- fm-captain-hold.sh answer (before any session-start replay)
+answered: lab-held-replay-pr
+answer rc=0
+--- backlog row line (data/backlog.md)
+6:- [x] lab-held-replay-pr - Lab ship task lab-held-replay-pr (repo: sample) (kind: ship) (done 2026-10-23) (hold: fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS) (hold-kind: captain)
+7-  Resolution recorded by fm-captain-hold.
+8-  Decision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69
+--- tasks-axi show lab-held-replay-pr --full
+task:
+  id: lab-held-replay-pr
+  title: Lab ship task lab-held-replay-pr
+  state: done
+  blocked: no
+  blocked_by: none
+  held: no
+  hold_reason: "fm-hold-v1:Y2FwdGFpbiBtdXN0IGNob29zZSB0aGUgZm9sbG93LXVwIGZvciB0aGUgY2xvc2VkIFBS"
+  hold_kind: captain
+  hold_until: "-"
+  kind: ship
+  repo: sample
+  priority: "-"
+  created: "-"
+  closed: 2026-10-23
+  deps: none
+  links: none
+  body: "Resolution recorded by fm-captain-hold.\nDecision digest: a1c0382d55231512a9aa4645ff6215304d9378de27e458130446090c812e4d69\nResolution mode: answered\n\nCaptain decision:\nLeave the closed pull request closed.\nPR closed unmerged: https://github.com/sylergydigital/silsila/pull/781"
+--- leftover state
+lab-held-replay-pr.backlog-close
+lab-held-replay-pr.meta
+lab-held-replay-pr.status
+--- lab tmux window fm-lab-held-replay-pr
+(window fm-lab-held-replay-pr closed)
