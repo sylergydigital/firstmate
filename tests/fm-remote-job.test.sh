@@ -259,7 +259,7 @@ fi
 nixos_tools_case() (
   local host="$TMP_ROOT/nixos-host" account="$TMP_ROOT/nixos-account" state="$TMP_ROOT/nixos-jobs"
   local untrusted="$TMP_ROOT/nixos-untrusted-bin" profile real_ps real_sleep nixos_path ambient
-  local start command pgid pid='' i
+  local start command pgid pid='' i status
   profile="$host/run/current-system/sw/bin"
   real_ps=$(command -v ps)
   real_sleep=$(command -v sleep)
@@ -318,10 +318,24 @@ SH
   HOME="$account" FM_REMOTE_JOB_STATE_ROOT="$state" fm_remote_job_probe "$account" \
     || fail "the readiness probe rejected a worker whose ps lives only in the system profile"
   assert_absent "$untrusted/ps.log" "the worker ran a ps from an untrusted PATH entry"
-  kill -TERM "$pid" || fail "the system-profile worker stopped unexpectedly"
-  wait "$pid" 2>/dev/null || true
-  pid=''
   pass "ownership and readiness resolve ps and sleep on the operator PATH of a host without /bin/ps or /usr/bin/ps"
+
+  # A profile switch plus garbage collection can delete the heartbeat's
+  # resolved sleep under a running worker. The heartbeat must stop rather than
+  # spin, so the serving loop exits for a supervised restart that resolves again.
+  rm -f "$profile/sleep"
+  for ((i = 0; i < 200; i++)); do
+    kill -0 "$pid" 2>/dev/null || break
+    /bin/sleep 0.05
+  done
+  ! kill -0 "$pid" 2>/dev/null || fail "the worker kept serving after its heartbeat sleep disappeared"
+  status=0
+  wait "$pid" 2>/dev/null || status=$?
+  pid=''
+  [ "$status" -eq 1 ] || fail "the worker exited $status rather than 1 after its heartbeat sleep disappeared"
+  grep -q 'readiness heartbeat process stopped' "$TMP_ROOT/nixos-worker.log" \
+    || fail "the worker did not report its stopped heartbeat"$'\n'"$(cat "$TMP_ROOT/nixos-worker.log")"
+  pass "a vanished heartbeat sleep stops the worker for a supervised restart instead of spinning"
 )
 nixos_tools_case || exit 1
 

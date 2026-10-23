@@ -129,7 +129,7 @@ worker_heartbeat_loop() { # <account-home> <owner-pid>
     else
       touch -c -- "$ready" || exit 1
     fi
-    "$sleep_bin" 1
+    "$sleep_bin" 1 || exit 1
   done
 }
 
