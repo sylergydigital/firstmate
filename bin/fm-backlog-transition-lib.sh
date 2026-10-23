@@ -530,12 +530,22 @@ fm_backlog_pr_note_label() {  # <url>
     esac )
 }
 
+# tasks-axi renders every close carrying a --pr link as merged, so a pull
+# request its forge reports closed without merging arrives here as --closed-pr
+# and is recorded as a dated note instead, never as the row's pr link.
+fm_backlog_closed_pr_note() {  # <url>
+  printf 'PR closed unmerged %s: %s\n' "$(date +%Y-%m-%d)" "$1"
+}
+
 fm_backlog_done() {  # <data-dir> <id> [flag...]
   local data=$1 id=$2 arg label previous_arg=''
   local -a done_args=()
   shift 2
   for arg in "$@"; do
-    if [ "$previous_arg" = --pr ] && label=$(fm_backlog_pr_note_label "$arg"); then
+    if [ "$previous_arg" = --closed-pr ]; then
+      done_args[${#done_args[@]}-1]=--note
+      done_args+=("$(fm_backlog_closed_pr_note "$arg")")
+    elif [ "$previous_arg" = --pr ] && label=$(fm_backlog_pr_note_label "$arg"); then
       done_args[${#done_args[@]}-1]=--note
       done_args+=("$label $arg")
     else
@@ -588,6 +598,7 @@ fm_backlog_retain() {  # <data-dir> <id> [flag...]
           deliverable="${deliverable:+$deliverable; }$(fm_backlog_pr_note_label "$arg") $arg"
         fi
         ;;
+      --closed-pr) deliverable="${deliverable:+$deliverable; }$(fm_backlog_closed_pr_note "$arg")" ;;
       --note) deliverable="${deliverable:+$deliverable; }$arg" ;;
     esac
     previous_arg=$arg
@@ -984,7 +995,7 @@ fm_backlog_close_marker_validate() {  # <marker-path> <authorized-data-dir> <exp
     2)
       case "${args[0]}" in
         --note) [ "${args[1]}" = "local%20main" ] ;;
-        --pr)
+        --pr|--closed-pr)
           arg_value=${args[1]}
           [ "${#arg_value}" -le 2048 ] \
             && case "$arg_value" in https://*) true ;; *) false ;; esac \

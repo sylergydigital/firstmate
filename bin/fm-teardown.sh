@@ -1739,9 +1739,24 @@ work_is_landed() {
   content_in_default
 }
 
+# Does the forge report the recorded PR closed without merging? GitHub and
+# Forgejo are read through bin/fm-pr-lib.sh's record readers; any other forge,
+# a read error, or any other state answers no, keeping the plain PR link.
+pr_closed_unmerged() {
+  ( fm_pr_url_parse "$PR_URL" || exit 1
+    case "$FM_PR_PROVIDER" in
+      github) fm_pr_github_read_record "${FM_PR_PATH%%/*}" "${FM_PR_PATH#*/}" "$FM_PR_NUMBER" ;;
+      forgejo) fm_pr_forgejo_read_record "$FM_PR_HOST" "$FM_PR_PATH" "$FM_PR_NUMBER" ;;
+      *) exit 1 ;;
+    esac || exit 1
+    [ "$FM_PR_RECORD_MERGED" = false ] || exit 1
+    case "$FM_PR_RECORD_STATE" in CLOSED|closed) ;; *) exit 1 ;; esac )
+}
+
 # The completion links this teardown already holds locally. A scout's
 # deliverable is its report, a local-only ship lands on local main, and every
-# other ship carries the PR recorded on its own record.
+# other ship carries the PR recorded on its own record - as --closed-pr when
+# the forge reports it closed unmerged, so the close never reads as merged.
 BACKLOG_DONE_ARGS=()
 backlog_done_args() {
   local data_relative
@@ -1754,6 +1769,8 @@ backlog_done_args() {
     *)
       if [ "$MODE" = local-only ]; then
         BACKLOG_DONE_ARGS=(--note "local main")
+      elif [ -n "$PR_URL" ] && pr_closed_unmerged; then
+        BACKLOG_DONE_ARGS=(--closed-pr "$PR_URL")
       elif [ -n "$PR_URL" ]; then
         BACKLOG_DONE_ARGS=(--pr "$PR_URL")
       fi

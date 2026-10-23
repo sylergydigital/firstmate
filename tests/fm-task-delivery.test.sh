@@ -363,6 +363,8 @@ STUB
         "$mode: $contract retained the scout-only write restriction"
       assert_grep "Keep project edits inside this worktree; keep proof and scratch output outside it, under \`$home/data/$id/\` or a temporary directory." "$contract" \
         "$mode: $contract omitted the ship scratch-location rule"
+      assert_grep "When the deliverable is a built artefact rather than a PR, such as a static site deployed from a folder, keep its source under \`$home/data/$id/\` too, never only in this disposable worktree, which cleanup deletes." "$contract" \
+        "$mode: $contract omitted the built-artefact source-location rule"
       assert_grep "Outside the worktree, write only that task material and the status and steering-inbox records authorized below." "$contract" \
         "$mode: $contract omitted the ship outside-worktree write boundary"
       assert_grep "Leave the worktree clean before reporting done." "$contract" \

@@ -749,6 +749,35 @@ test_teardown_closes_the_backlog_item_itself() {
   pass "teardown closes its own backlog item before reporting success"
 }
 
+test_teardown_records_a_closed_unmerged_pr_as_closed() {
+  local case_dir out pr_url=https://github.com/example/repo/pull/7
+  case_dir=$(make_case tasks-axi-close-closed-unmerged)
+  write_meta "$case_dir" no-mistakes ship
+  printf 'pr=%s\n' "$pr_url" >> "$case_dir/state/task-x1.meta"
+  seed_backlog_in_flight "$case_dir"
+  cat > "$case_dir/fakebin/gh" <<'SH'
+#!/usr/bin/env bash
+case "${1:-} ${2:-}" in
+  "api graphql") printf '%s\n' state=CLOSED merged=false ; exit 0 ;;
+  "pr view") echo "error: pull request not found" >&2 ; exit 1 ;;
+esac
+exit 0
+SH
+  chmod +x "$case_dir/fakebin/gh"
+
+  out=$(run_teardown "$case_dir" 2>&1) || fail "teardown of a task whose PR closed unmerged failed: $out"
+  [ "$(backlog_row_state "$case_dir")" = "done" ] \
+    || fail "teardown left a closed-unmerged task's backlog item at $(backlog_row_state "$case_dir"): $out"
+  assert_grep "PR closed unmerged $(date +%Y-%m-%d): $pr_url" "$case_dir/data/backlog.md" \
+    "closed-unmerged backlog item did not record its PR as closed with the date"
+  if grep -F '(merged ' "$case_dir/data/backlog.md" >/dev/null; then
+    fail "a PR closed without merging was recorded as merged: $(cat "$case_dir/data/backlog.md")"
+  fi
+  assert_absent "$case_dir/state/task-x1.backlog-close" \
+    "a closed-unmerged close left its pending-close record behind"
+  pass "teardown records a PR closed without merging as closed with the date, never as merged"
+}
+
 test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note() {
   local case_dir out real_tasks_axi gerrit_url=https://gerrit.example.com/c/project/+/12345
   case_dir=$(make_case tasks-axi-close-gerrit)
@@ -5620,6 +5649,7 @@ test_forced_secondmate_own_missing_adapter_sibling_refuses_before_child_cleanup
 test_retained_sources_still_reach_the_ordinary_refusal
 test_local_only_fork_remote_allows
 test_teardown_closes_the_backlog_item_itself
+test_teardown_records_a_closed_unmerged_pr_as_closed
 test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note
 test_teardown_closes_a_gitlab_task_with_its_merge_request_url_as_a_note
 test_teardown_manual_backend_leaves_the_backlog_to_the_operator

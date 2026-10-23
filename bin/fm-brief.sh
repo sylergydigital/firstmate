@@ -778,6 +778,7 @@ If the top-level path is the primary checkout or not the worktree you were launc
 # Rules
 $RULE1
 2. Keep project edits inside this worktree; keep proof and scratch output outside it, under \`$DATA/$ID/\` or a temporary directory.
+   When the deliverable is a built artefact rather than a PR, such as a static site deployed from a folder, keep its source under \`$DATA/$ID/\` too, never only in this disposable worktree, which cleanup deletes.
    Outside the worktree, write only that task material and the status and steering-inbox records authorized below.
    Leave the worktree clean before reporting done.
 3. $FORGE_RULE_LINE
