@@ -27,6 +27,11 @@
 # A local-only completion is a delivery whether or not its row carries a kind.
 # The retained hold-kind alone keeps answered calls out of the section.
 # Merged PRs and reported scouts remain distinct.
+# Teardown closes a PR its forge did not confirm merged with a body note
+# (bin/fm-backlog-transition-lib.sh), parsed as pr_note. A row noted
+# "PR closed unmerged:" delivered nothing and is never landed; one noted
+# "PR merge unconfirmed:" stays listed with that note as its artifact, so the
+# section never claims a merge the forge did not confirm.
 #
 # The backlog-selection compatibility fallback keeps a structured Done row
 # whose three parsed artifact fields are absent when it does not retain
@@ -46,7 +51,7 @@ FM_LANDED_JQ_DEFS='
   def landed_artifact:
     if scout_report or (.kind == null and .completion.verb == "reported") then (.report_path // null)
     elif .completion.verb == "merged" then (.pr_url // null)
-    elif .completion.verb == "done" then (.local_note // null)
+    elif .completion.verb == "done" then (.local_note // .pr_note // null)
     else null
     end;
   # The kind-is-not-scout guards below and in the fallback are LOAD-BEARING:
@@ -69,6 +74,7 @@ FM_LANDED_JQ_DEFS='
       and (.local_note // null) != null);
   def landed_record:
     .state == "done" and .structured
+    and (((.pr_note // "") | startswith("PR closed unmerged: ")) | not)
     and (landed_delivery
       or (.kind != "scout"
         and .kind != "captain"
