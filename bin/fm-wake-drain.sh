@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Present durable watcher wake records, retire rows no actor could ever consume,
-# optionally acknowledge handled records,
+# optionally acknowledge handled records (an acknowledgement always prints one
+# result line, so success is never silent),
 # annotate every unread line for validated signal status keys, surface unread
 # informational status lines, latest captain-facing statuses not covered by a
 # newer branch outcome, OPEN DECISIONS, captain-call record divergence, and on
@@ -42,6 +43,7 @@ RECOVERY_MARKER="$STATE/.watcher-down"
 RECOVERY_MARKER_TOKEN=
 RECOVERY_ACK_REQUIRED=false
 RECOVERY_ACK_MOVED=false
+RECOVERY_ACK_PRIOR=
 ACK_THROUGH=
 ACK_GENERATION=
 ACK_REMOVED=0
@@ -916,6 +918,8 @@ if [ -n "$ACK_THROUGH" ]; then
   fi
   ACK_REMOVED=$(( $(awk 'END { print NR }' "$FM_WAKE_QUEUE") - $(awk 'END { print NR }' "$DRAIN_TMP") ))
   if [ ! -s "$DRAIN_TMP" ]; then
+    fm_recovery_marker_snapshot "$RECOVERY_MARKER" || exit 1
+    RECOVERY_ACK_PRIOR=$FM_RECOVERY_MARKER_TOKEN
     fm_recovery_marker_ack "$RECOVERY_MARKER" "$ACK_GENERATION"
     RECOVERY_ACK_STATUS=$?
     case "$RECOVERY_ACK_STATUS" in
@@ -966,6 +970,20 @@ if [ -n "$ACK_THROUGH" ]; then
   elif [ "$RECOVERY_ACK_MOVED" = true ]; then
     printf 'wake drain: acknowledged wakes through %s (%s row(s) consumed), but a newer recovery episode is pending; re-run bin/fm-wake-drain.sh and use the new WAKE_ACK_REQUIRED command\n' \
       "$ACK_THROUGH" "$ACK_REMOVED" >&2
+  elif [ "$ACK_REMOVED" -eq 0 ]; then
+    # Success is said out loud too, so a caller never has to read silence as
+    # confirmation: a retired recovery episode is named, and only an episode
+    # an earlier acknowledgement already retired is called a replay.
+    case "$RECOVERY_ACK_PRIOR" in
+      pending:*|announced:*)
+        printf 'wake drain: acknowledged through %s - no wake rows to consume; recovery episode %s acknowledged\n' \
+          "$ACK_THROUGH" "$ACK_GENERATION"
+        ;;
+      acked:*) printf 'wake drain: acknowledged through %s - nothing left to consume (already acknowledged)\n' "$ACK_THROUGH" ;;
+      *) printf 'wake drain: acknowledged through %s - no wake rows to consume\n' "$ACK_THROUGH" ;;
+    esac
+  else
+    printf 'wake drain: acknowledged through %s - %s wake row(s) consumed\n' "$ACK_THROUGH" "$ACK_REMOVED"
   fi
   exit 0
 fi

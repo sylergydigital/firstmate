@@ -32,7 +32,11 @@
 #                          human the wait is on. Only when neither absorb class
 #                          applies does the log's latest recognized status event decide:
 #                          terminal (captain-relevant) or non-terminal (no verb),
-#                          both surfaced at once. A provably-working stale past the
+#                          both surfaced at once, except that a finished `done:`
+#                          line naming the PR firstmate recorded (pr= meta) is absorbed
+#                          from its first sight and reminds once per
+#                          PAUSE_RESURFACE_SECS with a reason naming that PR
+#                          (recorded_pr_stale_bound). A provably-working stale past the
 #                          wedge threshold also surfaces, with an "escalation N"
 #                          count in the reason; at FM_WEDGE_DEMAND_INSPECT_COUNT
 #                          consecutive escalations on the SAME pane, the reason
@@ -51,7 +55,8 @@
 #                          "blocked-on-prompt:" and the picker's name, after the
 #                          demand-deep-inspection clause when that clause is
 #                          present; a plain stale reason gains the parenthetical
-#                          to carry the name, and no other reason carries it: the
+#                          to carry the name, the recorded-PR reminder ends its
+#                          own with it, and no other reason carries it: the
 #                          deferral, dead-record and declared-wait recheck
 #                          reasons below keep their wording.
 #                          Unless afk is active. A pane about to escalate
@@ -227,6 +232,11 @@ WATCH_HOME_EXISTED=0
 # watcher consumes only its identity-bound record after a poll observes landing.
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/fm-merge-authority-lib.sh"
+# The ship Definition-of-done owner, for the PR a `done:` line names
+# (recorded_pr_stale_bound). It is a canonical lint root in its own right, so it
+# is an analysis boundary here for the same reason as the owners above.
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/fm-dod-lib.sh"
 # shellcheck source=bin/fm-x-lib.sh
 . "$SCRIPT_DIR/fm-x-lib.sh"
 # shellcheck source=bin/fm-check-lib.sh
@@ -2340,11 +2350,11 @@ clear_dialog_suffix() {  # <task>
   rm -f "$STATE/.subsuper-dialog-$key"
 }
 
-# Name a blocking dialog on a plain stale reason or the final wedge escalation,
-# the only two reasons that carry it. The name stays inside the one
-# parenthetical, after every clause already there, because the away daemon
-# matches "idle *s, possible wedge, escalation *" as a prefix. A reason with no
-# parenthetical gains one.
+# Name a blocking dialog on a plain stale reason, the recorded-PR reminder, or
+# the final wedge escalation, the only reasons that carry it. The name stays
+# inside the one parenthetical, after every clause already there, because the
+# away daemon matches "idle *s, possible wedge, escalation *" as a prefix. A
+# reason with no parenthetical gains one.
 stale_reason_naming_dialog() {  # <reason> [dialog-name]
   local reason=$1 name=${2-}
   [ -n "$name" ] || { printf '%s' "$reason"; return 0; }
@@ -2516,6 +2526,95 @@ captain_call_stale_bound() {  # <window-key> <task>
   STALE_WAIT_DECLARATION=$(captain_call_declaration "$task" "$CAPTAIN_CALL_IDENTITY")
   away_record_present && return 0
   stale_wait_throttled "$key" "$STALE_WAIT_DECLARATION"
+}
+
+# The record of a finished worker's wait that needs no backlog hold: a `done:`
+# delivery naming the PR firstmate already recorded through bin/fm-pr-check.sh
+# (the task's pr= meta). Recording it is firstmate's own act after reading that
+# delivery, and the PR then waits on the merge decision or, once it lands, on
+# cleanup - neither of which a repeated stale alarm can advance, while the merge
+# poll already wakes firstmate when the PR lands or closes. So unlike the
+# captain-call bound, the first sight is absorbed too: it only starts the
+# interval, and the window then re-surfaces once per PAUSE_RESURFACE_SECS as a
+# reminder (recorded_pr_stale_reason) instead of on every pane tick, stable pane
+# included (recorded_pr_reminder_due). The declaration carries the status-log
+# signature, so any newer status event starts a fresh interval; that event
+# reaches firstmate on its own signal wake, not through this stale path.
+# A steer written or acknowledged after the last status line voids the bound,
+# the rule status_worker_wait_verb applies to a worker's own wait: a steer puts
+# the worker back to work without a status append, so until it appends one a
+# stale sight alarms, or wedge-escalates, exactly as it did before this bound
+# existed. An acknowledgement moves the record into handled/ with its own mtime
+# intact, so the handled/ directory's mtime is what dates it. While the away-posture record exists no reminder is owed
+# at all, as for the captain-call bound: the return brief lists the merge.
+# Sets STALE_WAIT_DECLARATION and RECORDED_PR only when the bound applies.
+# Returns 0 to absorb; 1 to alarm (the reminder is due, or the bound does not
+# apply). A first-sight marker that cannot be written alarms as today. A later
+# `done:` that names no PR, such as the no-mistakes pre-validation handoff after
+# rework, is a delivery firstmate has not acted on yet, so it alarms as before.
+RECORDED_PR=
+recorded_pr_stale_bound() {  # <window-key> <task>
+  local key=$1 task=$2 last verb pr rec declaration throttle
+  STALE_WAIT_DECLARATION=
+  RECORDED_PR=
+  [ -n "$task" ] || return 1
+  last=$(last_status_line "$STATE/$task.status")
+  status_line_verb "$last" verb
+  [ "$verb" = "done" ] || return 1
+  pr=$(fm_meta_get "$STATE/$task.meta" pr)
+  [ -n "$pr" ] || return 1
+  [ "$(fm_dod_pr_url_from_done_note "$(status_line_note "$last")")" = "$pr" ] || return 1
+  for rec in "$STATE/$task.inbox"/*.msg "$STATE/$task.inbox/handled"; do
+    [ "$rec" -nt "$STATE/$task.status" ] && return 1
+  done
+  declaration="recorded-pr:$pr:$(fm_wake_signal_sig "$STATE/$task.status" || true)"
+  STALE_WAIT_DECLARATION=$declaration
+  RECORDED_PR=$pr
+  throttle="$STATE/.paused-resurfaced-$key"
+  if [ "$(cat "$throttle" 2>/dev/null || true)" != "$declaration" ]; then
+    printf '%s' "$declaration" 2>/dev/null > "$throttle" || return 1
+    return 0
+  fi
+  away_record_present && return 0
+  stale_wait_throttled "$key" "$declaration"
+}
+
+# 0 when this window's re-surface marker belongs to the recorded-PR bound and its
+# interval has elapsed. A stable pane is otherwise inert after its first terminal
+# sight, so this is what lets it remind at all; it reads the marker before paying
+# for its age, so other stable terminal windows cost one builtin read per poll.
+recorded_pr_reminder_due() {  # <window-key>
+  local throttle="$STATE/.paused-resurfaced-$1" marker=''
+  [ -f "$throttle" ] || return 1
+  IFS= read -r marker < "$throttle" 2>/dev/null || [ -n "$marker" ] || return 1
+  case "$marker" in recorded-pr:*) ;; *) return 1 ;; esac
+  [ "$(age_of "$throttle")" -ge "$PAUSE_RESURFACE_SECS" ]
+}
+
+recorded_pr_stale_reason() {  # <window> <task>
+  printf 'stale: %s (finished, its recorded PR %s still awaits a merge decision or cleanup, status unchanged for %ss; a reminder once per %ss, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)' \
+    "$1" "$RECORDED_PR" "$(age_of "$STATE/$2.status")" "$PAUSE_RESURFACE_SECS"
+}
+
+# Queue a terminal-status stale alarm and record it against this window's hash,
+# re-surface throttle, wedge episode, and surfaced status span.
+surface_terminal_stale() {  # <window> <hash> <reason>
+  local win=$1 h=$2 reason=$3 key stale_status stale_record stale_end stale_rest stale_ident
+  key=$(window_key "$win")
+  fm_wake_append stale "$win" "$reason" || exit 1
+  stale_wait_record "$key"
+  printf '%s' "$h" > "$STATE/.stale-$key"
+  # Pre-cap shape kept the count here (keep-count contract).
+  wedge_episode_end "$key" 0 1
+  clear_write_tracking "$key"
+  stale_status="$STATE/$(window_to_task "$win" "$STATE").status"
+  stale_record=$(status_span_first_actionable_record "$stale_status" 0)
+  case $? in
+    0|1) stale_end=${stale_record%%$'\t'*}; stale_rest=${stale_record#*$'\t'}; stale_ident=${stale_rest%%$'\t'*} ;;
+    *) stale_end=''; stale_ident='' ;;
+  esac
+  mark_surfaced "$stale_status" "$stale_end" "$stale_ident"
+  wake "$reason"
 }
 
 # Surface a stale pane no classifier could resolve, so firstmate inspects it: it
@@ -3817,6 +3916,7 @@ EOF
           # authoritative source fm-crew-state.sh itself already prioritizes
           # over the log) a chance to override before trusting the log.
           if [ "$(cat "$sf" 2>/dev/null || true)" != "$h" ]; then
+            RECORDED_PR=
             if crew_is_provably_working "$(window_to_task "$w" "$STATE")"; then
               printf '%s' "$h" > "$sf"
               # Pre-cap shape kept the count here (keep-count contract).
@@ -3837,22 +3937,21 @@ EOF
               wedge_episode_end "$key" 0 1
               clear_write_tracking "$key"
               triage_log "absorbed stale (open captain call already surfaced for this status): $w"
-            else
-              stale_reason=$(stale_reason_naming_dialog "stale: $w" "$dialog")
-              fm_wake_append stale "$w" "$stale_reason" || exit 1
-              stale_wait_record "$key"
+            elif [ -z "$STALE_WAIT_DECLARATION" ] && recorded_pr_stale_bound "$key" "$task"; then
+              # A finished worker whose PR firstmate already recorded: absorb the
+              # new hash and leave the reminder to the bound's own interval.
               printf '%s' "$h" > "$sf"
               # Pre-cap shape kept the count here (keep-count contract).
               wedge_episode_end "$key" 0 1
               clear_write_tracking "$key"
-              stale_status="$STATE/$(window_to_task "$w" "$STATE").status"
-              stale_record=$(status_span_first_actionable_record "$stale_status" 0)
-              case $? in
-                0|1) stale_end=${stale_record%%$'\t'*}; stale_rest=${stale_record#*$'\t'}; stale_ident=${stale_rest%%$'\t'*} ;;
-                *) stale_end=''; stale_ident='' ;;
-              esac
-              mark_surfaced "$stale_status" "$stale_end" "$stale_ident"
-              wake "$stale_reason"
+              triage_log "absorbed stale (finished with a recorded PR, reminded once per interval): $w"
+            else
+              if [ -n "$RECORDED_PR" ]; then
+                stale_reason=$(recorded_pr_stale_reason "$w" "$task")
+              else
+                stale_reason="stale: $w"
+              fi
+              surface_terminal_stale "$w" "$h" "$(stale_reason_naming_dialog "$stale_reason" "$dialog")"
             fi
           elif [ -e "$ssf" ] \
             || { [ "$FM_WEDGE_MAX_ESCALATIONS" -gt 0 ] && [ -e "$STATE/.wedge-permanent-$key" ]; }; then
@@ -3872,6 +3971,18 @@ EOF
             # configured is what keeps a leftover marker from holding a window
             # here once the operator has turned the cap back off.
             wedge_timer_check "$w" "$ssf" "stale (overridden terminal status)" "$ewf" "$task" "$h" "$dialog"
+          elif recorded_pr_reminder_due "$key" && ! away_record_present \
+            && ! recorded_pr_stale_bound "$key" "$task"; then
+            # The same hash, absorbed by the recorded-PR bound, has reached its
+            # interval with nothing newer: the one reminder it owes. A bound that
+            # no longer applies owes none, and its marker goes with it, so this
+            # stable pane stops re-reading the bound on every poll.
+            if [ -n "$RECORDED_PR" ]; then
+              surface_terminal_stale "$w" "$h" \
+                "$(stale_reason_naming_dialog "$(recorded_pr_stale_reason "$w" "$task")" "$dialog")"
+            else
+              rm -f "$STATE/.paused-resurfaced-$key"
+            fi
           fi
           # else: already surfaced as genuinely terminal on a prior poll of
           # this same hash - nothing left to do (matches the original,

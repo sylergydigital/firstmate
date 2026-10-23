@@ -4683,6 +4683,314 @@ test_reheld_captain_call_starts_its_own_resurface_window() {
   pass "a released-then-re-held task is a distinct captain call whose first sight still alarms"
 }
 
+# The recorded Claude background-task exit picker. The footer is the last
+# non-blank row, which is what fm_composer_blocking_dialog requires.
+write_exit_picker() {  # <file>
+  printf '%s\n' \
+    'Background work is running' \
+    'The following will stop when you exit:' \
+    'shell · sleep 300' \
+    '❯ 1. Exit and stop tasks' \
+    '  2. Move to background and exit' \
+    '  3. Stay' \
+    'Enter to confirm · Esc to cancel' > "$1"
+}
+
+# --- a finished worker whose PR firstmate already recorded ------------------
+# The same churn without any backlog hold: the delivery's PR was recorded through
+# bin/fm-pr-check.sh (pr= in the task's meta) and then waits on the merge word or
+# on cleanup. Recording it proves firstmate already read the delivery, so even
+# the first stale sight is absorbed and the window reminds once per
+# FM_PAUSE_RESURFACE_SECS, on a churning pane and on a stable one alike. Every
+# other status verb keeps its first-sight alarm even with a PR recorded.
+make_pr_home() {  # <name> <status-line>
+  local name=$1 line=$2 dir state
+  dir=$(make_case "$name"); state="$dir/state"
+  mkdir -p "$dir/data" "$dir/config"
+  printf 'window=test:fm-held-merge\nkind=ship\nharness=grok\nbackend=tmux\npr=https://example.invalid/pull/7\n' \
+    > "$state/held-merge.meta"
+  printf '%s\n' "$line" > "$state/held-merge.status"
+  printf '%s' "$(seen_sig "$state/held-merge.status")" > "$state/.seen-held-merge_status"
+  printf '%s\n' "$dir"
+}
+
+test_recorded_pr_bounds_finished_worker_stale() {
+  local dir state out capture throttle wakes c reason
+  dir=$(make_pr_home recorded-pr-finished 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  throttle="$state/.paused-resurfaced-$(hold_key)"
+
+  # First sight and every later pane tick are absorbed inside the interval.
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 2 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 0 ] || fail "a finished worker with a recorded PR alarmed $wakes time(s) inside the interval"
+  grep -q '^recorded-pr:https://example.invalid/pull/7:' "$throttle" 2>/dev/null \
+    || fail "the absorbed first sight started no reminder interval"
+
+  # Past the interval the next pane tick reminds exactly once, naming the PR and
+  # the blocking dialog the pane now sits on.
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  write_exit_picker "$capture"
+  hold_watch_launch "$dir" "$out" "$capture"
+  wait_for_exit "$HOLD_WATCH_PID" 100 \
+    || { reap "$HOLD_WATCH_PID"; fail "a finished worker with a recorded PR never reminded after its interval"; }
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 1 ] || fail "the elapsed interval produced $wakes wakes instead of one reminder"
+  reason=$(awk -F '\t' '$3 == "stale" { print $5 }' "$state/.wake-queue")
+  case "$reason" in
+    *'recorded PR https://example.invalid/pull/7 still awaits a merge decision or cleanup'*'not a wedge'*', blocked-on-prompt: Claude background-task exit picker)') ;;
+    *) fail "the reminder did not say what it is reminding about and which dialog blocks it: $reason" ;;
+  esac
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the reminder"
+
+  # A stable pane stays quiet inside the fresh interval...
+  hold_watch_launch "$dir" "$out" "$capture"
+  c=0
+  while [ "$c" -lt 4 ]; do
+    wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 \
+      || { reap "$HOLD_WATCH_PID"; fail "a stable recorded-PR pane alarmed inside its interval: $(cat "$out")"; }
+    c=$((c + 1))
+  done
+  reap "$HOLD_WATCH_PID"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "a stable recorded-PR pane alarmed inside its interval"
+
+  # ...and reminds once the interval elapses, with no pane change at all.
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_launch "$dir" "$out" "$capture"
+  wait_for_exit "$HOLD_WATCH_PID" 100 \
+    || { reap "$HOLD_WATCH_PID"; fail "a stable recorded-PR pane never reminded after its interval"; }
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "a stable recorded-PR pane did not remind exactly once"
+  reason=$(awk -F '\t' '$3 == "stale" { print $5 }' "$state/.wake-queue")
+  case "$reason" in
+    *'recorded PR https://example.invalid/pull/7'*', blocked-on-prompt: Claude background-task exit picker)') ;;
+    *) fail "the stable-pane reminder dropped the blocking dialog: $reason" ;;
+  esac
+  pass "a finished worker with a recorded PR stays quiet and reminds once per interval, churning or stable"
+}
+
+# The away posture owes no reminder at all, on a churning pane or a stable one:
+# the return brief lists the pending merge. The same fixture reminds at once
+# after the record is archived, so the silence is the record's alone.
+test_recorded_pr_never_reminds_while_away() {
+  local dir state out capture throttle c
+  dir=$(make_pr_home recorded-pr-away 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  throttle="$state/.paused-resurfaced-$(hold_key)"
+  write_away_record "$state"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a recorded-PR pane while the captain was away: $(cat "$out")"
+  [ -e "$throttle" ] || fail "the away first sight started no interval to remind on after return"
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, later' 1 \
+    || fail "a churning recorded-PR pane reminded while the captain was away: $(cat "$out")"
+  hold_watch_launch "$dir" "$out" "$capture"
+  c=0
+  while [ "$c" -lt 4 ]; do
+    wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 \
+      || { reap "$HOLD_WATCH_PID"; fail "a stable recorded-PR pane reminded while the captain was away: $(cat "$out")"; }
+    c=$((c + 1))
+  done
+  reap "$HOLD_WATCH_PID"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "a recorded-PR pane woke the away captain"
+
+  archive_away_record "$state"
+  hold_watch_launch "$dir" "$out" "$capture"
+  wait_for_exit "$HOLD_WATCH_PID" 100 \
+    || { reap "$HOLD_WATCH_PID"; fail "the reminder owed after the captain's return never came"; }
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "the return did not owe exactly one reminder"
+  pass "a recorded PR never reminds while the captain is away, and reminds once on return"
+}
+
+# Steering a finished worker puts it back to work with no status append, so the
+# status-log signature alone cannot tell rework from the wait the bound absorbs.
+# A steering-inbox record newer than the status log voids the bound, whatever
+# the re-surface marker holds: when the rework then stops silently, every new
+# pane hash alarms as it did without the bound, with the plain stale reason
+# rather than a merge reminder. The three cases differ only in what the marker
+# holds when the steer lands.
+write_handled_steer() {  # <state>
+  mkdir -p "$1/held-merge.inbox/handled"
+  printf 'schema=fm-task-inbox.v1\n--\nrename the flag before the merge\n' \
+    > "$1/held-merge.inbox/handled/001.msg"
+}
+
+# <rounds> new pane hashes after the steer, each of which must alarm once, plainly.
+steered_stall_alarms() {  # <dir> <rounds>
+  local dir=$1 rounds=$2 state="$1/state" round=1 reason
+  while [ "$round" -le "$rounds" ]; do
+    hold_watch_surface "$dir" "$dir/watch.out" "$dir/pane.txt" "idle, rework stopped ${round}" \
+      || fail "a steered worker's silent stall was absorbed as a recorded-PR wait on round $round"
+    [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "round $round of a steered stall did not alarm exactly once"
+    reason=$(awk -F '\t' '$3 == "stale" { print $5 }' "$state/.wake-queue")
+    [ "$reason" = 'stale: test:fm-held-merge' ] \
+      || fail "a steered stall was reported as a merge reminder: $reason"
+    ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge round $round"
+    round=$((round + 1))
+  done
+}
+
+# The marker still holds the recorded-PR declaration the first sight wrote.
+test_recorded_pr_steer_voids_the_bound() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-steered 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed before any steer"
+
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 2
+  pass "a steer after the recorded-PR bound started voids it, so a silent rework stall alarms"
+}
+
+# The captain-hold lifecycle: the call's first alarm replaced the marker with its
+# own declaration, then the captain asked for a change, so firstmate released
+# the call and steered the worker, which acted on it and stopped with no status.
+test_recorded_pr_steer_after_released_captain_call_alarms() {
+  local dir state out capture
+  command -v tasks-axi >/dev/null 2>&1 \
+    || { echo "skip: tasks-axi not found (recorded PR after a released captain call)"; return 0; }
+  dir=$(make_hold_home recorded-pr-released 'done: PR https://example.invalid/pull/7 checks green' nohold) \
+    || fail "could not build an unheld backlog fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  printf 'pr=https://example.invalid/pull/7\n' >> "$state/held-merge.meta"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed"
+
+  run_hold "$dir" hold held-merge --reason 'awaiting the captain on the merge' \
+    || fail "could not hold the task for the captain"
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, held 1' \
+    || fail "the captain call's first sight did not surface"
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "the captain call's first sight did not alarm exactly once"
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the captain call's first sight"
+
+  printf 'rename the flag first\n' > "$dir/decision.txt"
+  run_hold "$dir" answer held-merge --decision-file "$dir/decision.txt" --release \
+    || fail "could not record the captain's answer"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+  pass "a steer after a released captain call voids the recorded-PR bound, so a silent rework stall alarms"
+}
+
+# The first terminal sight alarmed before the PR was recorded, so the stable pane
+# never wrote a recorded-PR declaration for the steer to differ from.
+test_recorded_pr_recorded_after_first_alarm_steer_alarms() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-late 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  printf 'window=test:fm-held-merge\nkind=ship\nharness=grok\nbackend=tmux\n' > "$state/held-merge.meta"
+
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, elapsed 1s' \
+    || fail "a finished worker with no recorded PR did not alarm on first sight"
+  [ "$(hold_stale_wakes "$state")" -eq 1 ] || fail "the unrecorded first sight did not alarm exactly once"
+  ack_stopped_cycle "$state" >/dev/null || fail "could not acknowledge the unrecorded first sight"
+
+  printf 'pr=https://example.invalid/pull/7\n' >> "$state/held-merge.meta"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+  pass "a steer after the PR is recorded voids the bound even when no declaration was ever written"
+}
+
+# A steer written while the worker was still in its last turn predates the
+# done: line, and the worker acknowledges it only afterwards. Its record keeps
+# that earlier mtime when it is moved into handled/, so only the acknowledgement
+# itself can say the worker went back to work after the delivery.
+test_recorded_pr_steer_handled_after_done_alarms() {
+  local dir state out capture before
+  dir=$(make_pr_home recorded-pr-acked-late 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  before=$(( $(date +%s) - 5 ))
+  mkdir -p "$state/held-merge.inbox/handled"
+  printf 'schema=fm-task-inbox.v1\n--\nrename the flag before the merge\n' > "$state/held-merge.inbox/001.msg"
+  set_mtime "$before" "$state/held-merge.inbox/001.msg"
+  set_mtime "$before" "$state/held-merge.inbox/handled"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker whose only steer predates its delivery: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] \
+    || fail "a steer written before the done: line voided the bound before it was acted on"
+
+  mv "$state/held-merge.inbox/001.msg" "$state/held-merge.inbox/handled/001.msg"
+  steered_stall_alarms "$dir" 1
+  pass "a steer acknowledged after the done: line voids the recorded-PR bound even though it was written before it"
+}
+
+# Once the bound no longer applies, a stable pane has no reminder left to owe, so
+# the watcher drops the recorded-PR re-surface marker (persisted watcher state)
+# rather than re-reading the bound on every poll until the worker next appends a
+# status; the pane stays as inert as any terminal pane after its alarm.
+test_recorded_pr_marker_dropped_once_the_bound_stops_applying() {
+  local dir state out capture throttle c
+  dir=$(make_pr_home recorded-pr-marker-drop 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  throttle="$state/.paused-resurfaced-$(hold_key)"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ -e "$throttle" ] || fail "the absorbed first sight started no reminder interval"
+  write_handled_steer "$state"
+  steered_stall_alarms "$dir" 1
+
+  set_mtime "$(( $(date +%s) - 5000 ))" "$throttle"
+  hold_watch_launch "$dir" "$out" "$capture"
+  c=0
+  while [ "$c" -lt 4 ]; do
+    wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 \
+      || { reap "$HOLD_WATCH_PID"; fail "a stable pane whose bound was voided alarmed again: $(cat "$out")"; }
+    c=$((c + 1))
+  done
+  reap "$HOLD_WATCH_PID"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "a stable pane whose bound was voided alarmed again"
+  [ ! -e "$throttle" ] || fail "the stable pane kept a recorded-PR marker its bound no longer covers"
+  pass "a stable pane drops its recorded-PR marker once the bound stops applying"
+}
+
+# A no-mistakes rework round on an already-recorded PR: the captain asked for a
+# change, the worker acted on the steer, and its new `done:` is the
+# pre-validation handoff that names no PR, because the reworked head is neither
+# validated nor pushed. That delivery is new to firstmate, so its stale sight
+# keeps the immediate plain alarm instead of becoming a merge reminder.
+test_recorded_pr_rework_handoff_keeps_its_alarm() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-rework 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed"
+
+  write_handled_steer "$state"
+  set_mtime "$(( $(date +%s) - 5 ))" "$state/held-merge.inbox/handled"
+  printf 'done: addressed the review\n' >> "$state/held-merge.status"
+  printf '%s' "$(seen_sig "$state/held-merge.status")" > "$state/.seen-held-merge_status"
+  steered_stall_alarms "$dir" 1
+  pass "a pre-validation done: handoff after rework keeps its stale alarm despite the recorded PR"
+}
+
+test_recorded_pr_keeps_other_verbs_alarming() {
+  local dir state out capture wakes
+  dir=$(make_pr_home recorded-pr-blocked 'blocked: the PR needs a release-host credential') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+  hold_watch_surface "$dir" "$out" "$capture" 'idle, elapsed 1s' \
+    || fail "a blocker was silenced because its task had a recorded PR"
+  wakes=$(hold_stale_wakes "$state")
+  [ "$wakes" -eq 1 ] || fail "a blocker with a recorded PR produced $wakes wakes instead of one"
+  pass "a recorded PR bounds only a finished worker's stale alarm, never a blocker's"
+}
+
 
 
 test_secondmate_paused_resurfaces_in_normal_mode() {
@@ -7282,6 +7590,15 @@ test_open_captain_call_bounds_stale_churn
 test_stale_churn_without_a_captain_call_still_alarms
 test_failed_wake_append_does_not_arm_the_captain_hold_throttle
 test_reheld_captain_call_starts_its_own_resurface_window
+test_recorded_pr_bounds_finished_worker_stale
+test_recorded_pr_keeps_other_verbs_alarming
+test_recorded_pr_never_reminds_while_away
+test_recorded_pr_steer_voids_the_bound
+test_recorded_pr_steer_after_released_captain_call_alarms
+test_recorded_pr_recorded_after_first_alarm_steer_alarms
+test_recorded_pr_steer_handled_after_done_alarms
+test_recorded_pr_marker_dropped_once_the_bound_stops_applying
+test_recorded_pr_rework_handoff_keeps_its_alarm
 test_secondmate_paused_resurfaces_in_normal_mode
 test_secondmate_captain_held_resurfaces_in_normal_mode
 test_secondmate_nonpaused_stale_remains_suppressed
@@ -7321,19 +7638,6 @@ test_paused_until_wrong_year_is_bounded_by_the_cadence
 test_paused_until_that_passed_is_rechecked_before_the_cadence
 test_paused_bg_job_without_until_stays_silent_after_the_job_ends
 test_paused_bg_job_until_timeout_rechecks_after_the_job_ends
-
-# The recorded Claude background-task exit picker. The footer is the last
-# non-blank row, which is what fm_composer_blocking_dialog requires.
-write_exit_picker() {  # <file>
-  printf '%s\n' \
-    'Background work is running' \
-    'The following will stop when you exit:' \
-    'shell · sleep 300' \
-    '❯ 1. Exit and stop tasks' \
-    '  2. Move to background and exit' \
-    '  3. Stay' \
-    'Enter to confirm · Esc to cancel' > "$1"
-}
 
 # The same words quoted above a normal composer. That is not a live picker.
 write_quoted_exit_picker() {  # <file>

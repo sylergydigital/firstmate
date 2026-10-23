@@ -320,6 +320,8 @@ It leaves a row above the cutoff that arrived after presentation unowned, so an 
 Every settled branch prompt releases any residual grant.
 So an omitted or failed acknowledgement leaves the durable row available to a later main drain.
 A successful acknowledgement has already removed it.
+Every acknowledgement prints one result line, so success is never read from silence.
+The line names how many rows it consumed; one that consumed none names the recovery episode it retired, says it was already acknowledged when an earlier acknowledgement retired that episode, or otherwise says there were no wake rows to consume.
 
 An acknowledgement can remove none of the actor's rows while a presented row above the cutoff still waits.
 Such an acknowledgement is reported as having acknowledged nothing, together with the exact `--ack-through` and `--recovery-generation` command for that presented row.
