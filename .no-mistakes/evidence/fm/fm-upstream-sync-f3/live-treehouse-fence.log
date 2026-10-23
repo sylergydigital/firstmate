@@ -1,0 +1,58 @@
+## pool seeded by the OTHER clone (2 slots, then returned)
+/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/1/repo
+/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/2/repo
+{"path":"/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/1/repo","status":"available","lease_holder":""}
+{"path":"/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/2/repo","status":"available","lease_holder":""}
+/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/1/repo common-dir=/tmp/fm-lab.twjEPF/repos/secondmate-home/repo/.git
+/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/2/repo common-dir=/tmp/fm-lab.twjEPF/repos/secondmate-home/repo/.git
+## real spawn: bin/fm-spawn.sh th-fence-live /tmp/fm-lab.twjEPF/repos/main-home/repo --scout (FM_HOME=lab, tmux lab socket, harness codex)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.twjEPF
+spawned th-fence-live harness=codex kind=scout window=primary:fm-th-fence-live worktree=/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo
+spawn rc=0
+## state/th-fence-live.meta
+window=primary:fm-th-fence-live
+worktree=/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo
+harness=codex
+kind=scout
+## landed worktree belongs to:
+/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo common-dir=/tmp/fm-lab.twjEPF/repos/main-home/repo/.git
+## project common-dir: /tmp/fm-lab.twjEPF/repos/main-home/repo/.git
+## pool after spawn
+{"path":"/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/1/repo","status":"available","lease_holder":""}
+{"path":"/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/2/repo","status":"available","lease_holder":""}
+{"path":"/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo","status":"in-use","lease_holder":""}
+## leases still held by the fence holder
+## task pane
+primary:bash /home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5JZ9EK9CVJNPTAJJAD5JN1A
+primary:fm-th-fence-live /tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo
+🌳 Entered worktree at /tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo. Typ
+e 'exit' to return.
+admin_mmunem_altostrat_com@ubuntu-dev-pc:/tmp/fm-lab.twjEPF/thr/.treehouse/repo-
+5f6de0/3/repo$ cd -- '/tmp/fm-lab.twjEPF/thr/.treehouse/repo-5f6de0/3/repo'
+admin_mmunem_altostrat_com@ubuntu-dev-pc:/tmp/fm-lab.twjEPF/thr/.treehouse/repo-
+5f6de0/3/repo$ export GOTMPDIR=/tmp/fm-th-fence-live/gotmp
+export COMPACT_ADVISER_DISABLE=1
+admin_mmunem_altostrat_com@ubuntu-dev-pc:/tmp/fm-lab.twjEPF/thr/.treehouse/repo-
+5f6de0/3/repo$ export COMPACT_ADVISER_DISABLE=1
+export FM_TASK_ID=th-fence-live
+admin_mmunem_altostrat_com@ubuntu-dev-pc:/tmp/fm-lab.twjEPF/thr/.treehouse/repo-
+5f6de0/3/repo$ export FM_TASK_ID=th-fence-live
+admin_mmunem_altostrat_com@ubuntu-dev-pc:/tmp/fm-lab.twjEPF/thr/.treehouse/repo-
+5f6de0/3/repo$ . '/tmp/fm-th-fence-live+e6a093145e5053288d456440644f4a85d88ad346
+6803dc725d02cbfa2e781005/launch.s1792712680.3914423.12311.sh'
+VERDICT: PASS
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/sendemail-validate': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-auto-gc': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/post-rewrite': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-push': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/post-merge': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/post-checkout': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-rebase': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/post-commit': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/prepare-commit-msg': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-merge-commit': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-commit': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/post-applypatch': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/pre-applypatch': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/applypatch-msg': Permission denied
+rm: cannot remove '/tmp/fm-lab.twjEPF/state/th-fence-live.git-hooks/commit-msg': Permission denied

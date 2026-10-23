@@ -1,0 +1,63 @@
+## provision herdr lab session fm-lab-reclaim-2662-13460
+
+################ A. flat reclaim in the surviving recorded workspace
+warning: herdr presentation parent is absent or ambiguous; using the ordinary flat layout without projection
+spawned hr-flat-live harness=codex kind=scout window=fm-lab-reclaim-2662-13460:w1:p2 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+record: window=fm-lab-reclaim-2662-13460:w1:p2 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo herdr_session=fm-lab-reclaim-2662-13460 herdr_workspace_id=w1 herdr_tab_id=w1:t2 herdr_pane_id=w1:p2 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"}]
+-- tabs:       [{"tab_id":"w1:t2","workspace_id":"w1","label":"fm-hr-flat-live"},{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"}]
+-- codex in task pane:
+after destroying w1:p2:
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"}]
+relaunched hr-flat-live harness=codex from=codex model=default effort=default backend=herdr endpoint=fm-lab-reclaim-2662-13460:w1:p4 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+relaunch rc=0
+record: window=fm-lab-reclaim-2662-13460:w1:p4 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo herdr_session=fm-lab-reclaim-2662-13460 herdr_workspace_id=w1 herdr_tab_id=w1:t4 herdr_pane_id=w1:p4 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w1:t4","workspace_id":"w1","label":"fm-hr-flat-live"}]
+rebound pane cwd: /tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+-- codex in rebound pane:
+SCENARIO A flat-reclaim: PASS
+
+################ B. adversarial: decoy fm-hr-flat-live tab in another workspace
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"decoy-ws"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w2:t1","workspace_id":"w2","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-flat-live"}]
+error: another Herdr task tab named fm-hr-flat-live exists in workspace 'w2'; refusing to create a second task copy
+error: the replacement agent for hr-flat-live could not be launched on codex
+error: hr-flat-live's agent was stopped but the replacement did not launch; no agent is running, and its work plus the recorded progress note are preserved at /tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+relaunch rc=1
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"decoy-ws"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w2:t1","workspace_id":"w2","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-flat-live"}]
+SCENARIO B duplicate-refusal: PASS
+
+################ C. projection reclaim (spawned from inside a lab Herdr pane)
+warning: herdr presentation could not publish an exact restart binding; this task will use flat fallback after a restart
+spawned hr-proj-live harness=codex kind=scout window=fm-lab-reclaim-2662-13460:w4:p2 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+spawn C rc=0
+record: window=fm-lab-reclaim-2662-13460:w4:p2 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo herdr_session=fm-lab-reclaim-2662-13460 herdr_workspace_id=w4 herdr_tab_id=w4:t2 herdr_pane_id=w4:p2 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"decoy-ws"},{"workspace_id":"w3","label":"primary-ws"},{"workspace_id":"w4","label":"└ hr-proj-live · p:2TRhbPh9IUVZwA1YA0kE8w"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w2:t1","workspace_id":"w2","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-flat-live"},{"tab_id":"w3:t1","workspace_id":"w3","label":"1"},{"tab_id":"w4:t2","workspace_id":"w4","label":"fm-hr-proj-live"}]
+hr-proj-live.git-hooks hr-proj-live.herdr-presentation hr-proj-live.meta 
+-- codex in projected pane:
+after destroying w4:p2:
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"decoy-ws"},{"workspace_id":"w3","label":"primary-ws"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w2:t1","workspace_id":"w2","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-flat-live"},{"tab_id":"w3:t1","workspace_id":"w3","label":"1"}]
+projection workspace w4 vanished with its pane
+error: task hr-proj-live's Herdr recovery journal does not match its recorded missing endpoint; refusing to recreate it
+error: the replacement agent for hr-proj-live could not be launched on codex
+error: hr-proj-live's agent was stopped but the replacement did not launch; no agent is running, and its work plus the recorded progress note are preserved at /tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo
+relaunch rc=1
+record: window=fm-lab-reclaim-2662-13460:w4:p2 worktree=/tmp/fm-lab.LGtJVi/thr/.treehouse/repo-623ac5/1/repo herdr_session=fm-lab-reclaim-2662-13460 herdr_workspace_id=w4 herdr_tab_id=w4:t2 herdr_pane_id=w4:p2 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"decoy-ws"},{"workspace_id":"w3","label":"primary-ws"}]
+-- tabs:       [{"tab_id":"w1:t3","workspace_id":"w1","label":"keeper"},{"tab_id":"w2:t1","workspace_id":"w2","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-flat-live"},{"tab_id":"w3:t1","workspace_id":"w3","label":"1"}]
+x relaunch rc=1
+x pane not rebound
+x rebound pane w4:p2 absent
+rebound pane cwd: 
+x rebound pane not in recorded worktree
+x no recreated projection workspace
+-- codex in rebound pane:
+SCENARIO C projection-reclaim: FAIL
+
+VERDICT: A=PASS B=PASS C=FAIL
+lab session fm-lab-reclaim-2662-13460 torn down (tripwire verified)

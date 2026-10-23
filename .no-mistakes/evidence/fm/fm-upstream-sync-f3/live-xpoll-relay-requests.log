@@ -1,0 +1,12 @@
+GET /connector/poll
+  Host: 127.0.0.1:26652
+  User-Agent: curl/8.14.1
+  Authorization: Bearer <redacted>
+  Accept: application/json
+  Firstmate-Features: query
+GET /connector/poll
+  Host: 127.0.0.1:26652
+  User-Agent: curl/8.14.1
+  Authorization: Bearer <redacted>
+  Accept: application/json
+  Firstmate-Features: query

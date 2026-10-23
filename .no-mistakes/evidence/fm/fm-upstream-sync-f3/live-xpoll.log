@@ -1,0 +1,30 @@
+$ FM_HOME=<tmp home> bin/fm-x-poll.sh   (relay stand-in on 127.0.0.1:26652, real curl)
+x-mention req-live-query
+exit=0
+--- stashed state/x-inbox/req-live-query.json:
+{
+  "request_id": "req-live-query",
+  "platform": "discord",
+  "reply_max_chars": 1900,
+  "text": "what is the fleet working on today?",
+  "author_id": "overseer-42",
+  "in_reply_to": null,
+  "in_reply_to_chain": [],
+  "images": [],
+  "attachments": [],
+  "kind": "query",
+  "query": {
+    "asker": {
+      "handle": "@lead",
+      "display_name": "Fleet Lead",
+      "platform": "discord"
+    },
+    "direct": false,
+    "outsiders": false,
+    "continues": null
+  }
+}
+--- state/x-context/req-live-query.json:
+{"request_id":"req-live-query","platform":"discord","reply_max_chars":"1900","recorded_at":1792713095}
+--- second poll (relay now 204):
+exit=0 (no output = nothing pending)

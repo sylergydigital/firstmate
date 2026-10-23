@@ -1,0 +1,9 @@
+$ touch .stow-stow-control.md .stow-archive.md notes.md; git status --porcelain --untracked-files=all; git check-ignore -v ...
+?? stow-control.md
+--- check-ignore:
+.gitignore:16:.stow-notes.md	.stow-notes.md
+.gitignore:17:.stow-archive.md	.stow-archive.md
+.gitignore:13:config/	config/x
+.gitignore:15:.tools/	.tools/x
+check-ignore exit=0 (stow-control.md must NOT be listed)
+--- clean after removal:

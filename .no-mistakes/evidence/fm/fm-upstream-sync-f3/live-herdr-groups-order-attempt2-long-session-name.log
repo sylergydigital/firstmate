@@ -1,0 +1,29 @@
+## provision herdr lab session fm-lab-groups-478891-6048 (herdr 0.9.0, protocol 22)
+config/herdr-project-groups:
+  Alpha task:grp-a
+  Beta  task:grp-b
+order-key grp-a: 001.Alpha
+order-key grp-b: 002.Beta
+
+## spawn grp-b (group Beta) first
+warning: herdr project groups: agents view set failed for session fm-lab-groups-478891-6048
+spawned grp-b harness=codex kind=scout window=fm-lab-groups-478891-6048:w2:p2 worktree=/tmp/fm-lab.EBs8RP/thr/.treehouse/repo-9200ba/1/repo
+spawn grp-b rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ grp-b · p:TEfHLQiNMmdHFq8la1xVLg"}]
+grp-b workspace w2 metadata: {"label":"└ grp-b · p:TEfHLQiNMmdHFq8la1xVLg","metadata":{"fm_group":"Beta","fm_group_order":"002.Beta","fm_state":"running"}}
+
+## spawn grp-a (group Alpha) second
+warning: herdr presentation workspace move failed or had an ambiguous response; leaving worker running without cleanup
+warning: herdr project groups: agents view set failed for session fm-lab-groups-478891-6048
+spawned grp-a harness=codex kind=scout window=fm-lab-groups-478891-6048:w3:p2 worktree=/tmp/fm-lab.EBs8RP/thr/.treehouse/repo-9200ba/2/repo
+spawn grp-a rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ grp-b · p:TEfHLQiNMmdHFq8la1xVLg"},{"workspace_id":"w3","label":"└ grp-a · p:eBHuPlYOPotfNnS_RUuYxQ"}]
+order: w1 w2 w3  (parent=w1@0, grp-a=w3@2, grp-b=w2@1)
+x grp-a (Alpha) was not placed before grp-b (Beta) inside the parent's child block
+## mover calls made by fm-spawn:
+args: /home/admin_mmunem_altostrat_com/repos/personal/dotfiles/home/.config/herdr/sessions/fm-lab-groups-478891-6048/herdr.sock w3 1
+exit: 2
+stdout: 
+stderr: 
+VERDICT: group-order placement=FAIL
+lab session fm-lab-groups-478891-6048 torn down (tripwire verified)

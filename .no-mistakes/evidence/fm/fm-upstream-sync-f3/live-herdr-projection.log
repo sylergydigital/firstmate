@@ -1,0 +1,43 @@
+## provision herdr lab session fm-lab-reclaim-123727-24112
+
+################ C. projection reclaim (spawned from inside a lab Herdr pane)
+spawned hr-proj-live harness=codex kind=scout window=fm-lab-reclaim-123727-24112:w2:p2 worktree=/tmp/fm-lab.d3mWVW/thr/.treehouse/repo-4fad3d/1/repo
+spawn C rc=0
+record: window=fm-lab-reclaim-123727-24112:w2:p2 worktree=/tmp/fm-lab.d3mWVW/thr/.treehouse/repo-4fad3d/1/repo herdr_session=fm-lab-reclaim-123727-24112 herdr_workspace_id=w2 herdr_tab_id=w2:t2 herdr_pane_id=w2:p2 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ hr-proj-live · p:_fzFxubYYPgiCjLN-XVeoQ"}]
+-- tabs:       [{"tab_id":"w1:t1","workspace_id":"w1","label":"1"},{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-proj-live"}]
+hr-proj-live.git-hooks hr-proj-live.herdr-presentation hr-proj-live.meta 
+journal after spawn:
+  version=2
+  session=fm-lab-reclaim-123727-24112
+  workspace_id=w2
+  tab_id=w2:t2
+  pane_id=w2:p2
+  parent_workspace_id=w1
+  parent_label=firstmate
+  workspace_label=└ hr-proj-live · p:_fzFxubYYPgiCjLN-XVeoQ
+-- codex in projected pane:
+after destroying w2:p2:
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"}]
+-- tabs:       [{"tab_id":"w1:t1","workspace_id":"w1","label":"1"}]
+projection workspace w2 vanished with its pane
+relaunched hr-proj-live harness=codex from=codex model=default effort=default backend=herdr endpoint=fm-lab-reclaim-123727-24112:w3:p2 worktree=/tmp/fm-lab.d3mWVW/thr/.treehouse/repo-4fad3d/1/repo
+relaunch rc=0
+record: window=fm-lab-reclaim-123727-24112:w3:p2 worktree=/tmp/fm-lab.d3mWVW/thr/.treehouse/repo-4fad3d/1/repo herdr_session=fm-lab-reclaim-123727-24112 herdr_workspace_id=w3 herdr_tab_id=w3:t2 herdr_pane_id=w3:p2 
+-- workspaces: [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w3","label":"└ hr-proj-live · p:abLbjK6en_3Jg4dYn5fSXw"}]
+-- tabs:       [{"tab_id":"w1:t1","workspace_id":"w1","label":"1"},{"tab_id":"w3:t2","workspace_id":"w3","label":"fm-hr-proj-live"}]
+rebound pane cwd: /tmp/fm-lab.d3mWVW/thr/.treehouse/repo-4fad3d/1/repo
+-- codex in rebound pane:
+journal after reclaim:
+  version=2
+  session=fm-lab-reclaim-123727-24112
+  workspace_id=w3
+  tab_id=w3:t2
+  pane_id=w3:p2
+  parent_workspace_id=w1
+  parent_label=firstmate
+  workspace_label=└ hr-proj-live · p:abLbjK6en_3Jg4dYn5fSXw
+SCENARIO C projection-reclaim: PASS
+
+VERDICT: C=PASS
+lab session fm-lab-reclaim-123727-24112 torn down (tripwire verified)

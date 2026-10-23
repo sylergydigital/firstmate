@@ -1,0 +1,16 @@
+## tree /home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5JZ9EK9CVJNPTAJJAD5JN1A (f5fc48ad), groups=1835035472, lab fm-lab-movectl-350520-8460
+warning: herdr project groups: agents view set failed for session fm-lab-movectl-350520-8460
+spawned grp-b harness=codex kind=scout window=fm-lab-movectl-350520-8460:w2:p2 worktree=/tmp/fm-lab.etZdj1/thr/.treehouse/repo-c34cf8/1/repo
+spawn grp-b rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ grp-b · p:wyvzShMV8cppTDGYIwaLRQ"},{"workspace_id":"w3","label":"zz-foreign"}]
+warning: herdr presentation could not publish an exact restart binding; this task will use flat fallback after a restart
+warning: herdr project groups: agents view set failed for session fm-lab-movectl-350520-8460
+spawned grp-a harness=codex kind=scout window=fm-lab-movectl-350520-8460:w4:p2 worktree=/tmp/fm-lab.etZdj1/thr/.treehouse/repo-c34cf8/2/repo
+spawn grp-a rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ grp-b · p:wyvzShMV8cppTDGYIwaLRQ"},{"workspace_id":"w3","label":"zz-foreign"},{"workspace_id":"w4","label":"└ grp-a · p:mcf0HXbK_MqKa-kCkmdp1w"}]
+## direct mover probe (stderr visible): move w4 to index 1
+socket: /home/admin_mmunem_altostrat_com/.config/herdr/sessions/fm-lab-movectl-350520-8460/herdr.sock
+{"id":"fm-workspace-move","result":{"type":"workspace_list","workspaces":[{"workspace_id":"w1","number":1,"label":"firstmate","focused":true,"pane_count":1,"tab_count":1,"active_tab_id":"w1:t1","agent_status":"unknown"},{"workspace_id":"w4","number":2,"label":"\u2514 grp-a \u00b7 p:mcf0HXbK_MqKa-kCkmdp1w","focused":false,"pane_count":1,"tab_count":1,"active_tab_id":"w4:t2","agent_status":"unknown"},{"workspace_id":"w2","number":3,"label":"\u2514 grp-b \u00b7 p:wyvzShMV8cppTDGYIwaLRQ","focused":false,"pane_count":1,"tab_count":1,"active_tab_id":"w2:t2","agent_status":"idle","tokens":{"fm_state":"running","fm_group_order":"002.Beta","fm_group":"Beta"}},{"workspace_id":"w3","number":4,"label":"zz-foreign","focused":false,"pane_count":1,"tab_count":1,"active_tab_id":"w3:t1","agent_status":"unknown"}]}}
+mover exit=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w4","label":"└ grp-a · p:mcf0HXbK_MqKa-kCkmdp1w"},{"workspace_id":"w2","label":"└ grp-b · p:wyvzShMV8cppTDGYIwaLRQ"},{"workspace_id":"w3","label":"zz-foreign"}]
+lab session fm-lab-movectl-350520-8460 torn down (tripwire verified)

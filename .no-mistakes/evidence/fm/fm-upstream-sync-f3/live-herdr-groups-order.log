@@ -1,0 +1,25 @@
+## provision herdr lab session fm-lab-g40 (herdr 0.9.0, protocol 22)
+config/herdr-project-groups:
+  Alpha task:grp-a
+  Beta  task:grp-b
+order-key grp-a: 001.Alpha
+order-key grp-b: 002.Beta
+
+## spawn grp-b (group Beta) first
+spawned grp-b harness=codex kind=scout window=fm-lab-g40:w2:p2 worktree=/tmp/fm-lab.qcu7L1/thr/.treehouse/repo-a59151/1/repo
+spawn grp-b rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w2","label":"└ grp-b · p:0qPvUKSSHZzt-xm_ve6rTA"}]
+grp-b workspace w2 metadata: {"label":"└ grp-b · p:0qPvUKSSHZzt-xm_ve6rTA","metadata":{"fm_group":"Beta","fm_group_order":"002.Beta","fm_state":"running"}}
+
+## spawn grp-a (group Alpha) second
+spawned grp-a harness=codex kind=scout window=fm-lab-g40:w3:p2 worktree=/tmp/fm-lab.qcu7L1/thr/.treehouse/repo-a59151/2/repo
+spawn grp-a rc=0
+-- workspaces (in order): [{"workspace_id":"w1","label":"firstmate"},{"workspace_id":"w3","label":"└ grp-a · p:ejqmhJ7snKtMVLRFyfo9Hg"},{"workspace_id":"w2","label":"└ grp-b · p:0qPvUKSSHZzt-xm_ve6rTA"}]
+order: w1 w3 w2  (parent=w1@0, grp-a=w3@1, grp-b=w2@2)
+## mover calls made by fm-spawn:
+args: /home/admin_mmunem_altostrat_com/repos/personal/dotfiles/home/.config/herdr/sessions/fm-lab-g40/herdr.sock w3 1
+exit: 0
+stdout: {"id":"fm-workspace-move","result":{"type":"workspace_list","workspaces":[{"workspace_id":"w1","number":1,"label":"firstmate","focused":true,"pane_count":1,"tab_count":1,"active_tab_id":"w1:t1","agent_status":"unknown"},{"workspace_id":"w3","number":2,"label":"\u2514 grp-a \u00b7 p:ejqmhJ7sn
+stderr: 
+VERDICT: group-order placement=PASS
+lab session fm-lab-g40 torn down (tripwire verified)

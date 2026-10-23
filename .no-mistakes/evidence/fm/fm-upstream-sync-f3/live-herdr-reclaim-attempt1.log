@@ -1,0 +1,66 @@
+## provision herdr lab session fm-lab-reclaim-4086504-31361
+## 1. real spawn (herdr backend, codex scout)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.9QakJD
+warning: herdr presentation parent is absent or ambiguous; using the ordinary flat layout without projection
+spawned hr-reclaim-live harness=codex kind=scout window=fm-lab-reclaim-4086504-31361:w1:p2 worktree=/tmp/fm-lab.9QakJD/thr/.treehouse/repo-3befa2/1/repo
+window=fm-lab-reclaim-4086504-31361:w1:p2
+worktree=/tmp/fm-lab.9QakJD/thr/.treehouse/repo-3befa2/1/repo
+harness=codex
+backend=herdr
+herdr_session=fm-lab-reclaim-4086504-31361
+herdr_workspace_id=w1
+herdr_tab_id=w1:t2
+herdr_pane_id=w1:p2
+-- workspaces
+{"workspace_id":"w1","label":"firstmate"}
+-- tabs
+{"tab_id":"w1:t2","workspace_id":"w1","label":"fm-hr-reclaim-live"}
+journal: 
+-- task pane tail
+## 2. destroy the task pane (w1:p2)
+pane w1:p2 is gone
+-- workspaces
+-- tabs
+classifier: missing
+## 3. reclaim: fm-control.sh hr-reclaim-live relaunch --note ...
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.9QakJD
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.9QakJD
+error: recorded Herdr workspace 'w1' for task hr-reclaim-live is missing; refusing to recreate its endpoint
+error: the replacement agent for hr-reclaim-live could not be launched on codex
+error: hr-reclaim-live's agent was stopped but the replacement did not launch; no agent is running, and its work plus the recorded progress note are preserved at /tmp/fm-lab.9QakJD/thr/.treehouse/repo-3befa2/1/repo
+relaunch rc=1
+window=fm-lab-reclaim-4086504-31361:w1:p2
+worktree=/tmp/fm-lab.9QakJD/thr/.treehouse/repo-3befa2/1/repo
+herdr_session=fm-lab-reclaim-4086504-31361
+herdr_workspace_id=w1
+herdr_tab_id=w1:t2
+herdr_pane_id=w1:p2
+-- workspaces
+-- tabs
+new pane cwd: 
+-- new pane tail
+x relaunch failed
+x pane not rebound
+x new pane absent
+x new pane not in recorded worktree
+SCENARIO reclaim: FAIL
+## 4. adversarial: destroy again, plant a decoy fm-hr-reclaim-live tab in another workspace, reclaim must refuse
+-- workspaces
+{"workspace_id":"w2","label":"decoy-ws"}
+-- tabs
+{"tab_id":"w2:t1","workspace_id":"w2","label":"1"}
+{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-reclaim-live"}
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.9QakJD
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.9QakJD
+error: recorded Herdr workspace 'w1' for task hr-reclaim-live is missing; refusing to recreate its endpoint
+error: the replacement agent for hr-reclaim-live could not be launched on codex
+error: hr-reclaim-live's agent was stopped but the replacement did not launch; no agent is running, and its work plus the recorded progress note are preserved at /tmp/fm-lab.9QakJD/thr/.treehouse/repo-3befa2/1/repo
+relaunch rc=1
+SCENARIO duplicate-refusal: PASS
+-- workspaces
+{"workspace_id":"w2","label":"decoy-ws"}
+-- tabs
+{"tab_id":"w2:t1","workspace_id":"w2","label":"1"}
+{"tab_id":"w2:t2","workspace_id":"w2","label":"fm-hr-reclaim-live"}
+VERDICT: reclaim=FAIL duplicate-refusal=PASS
+lab session fm-lab-reclaim-4086504-31361 torn down (tripwire verified)

@@ -1,0 +1,4 @@
+ok - a spawn in a shared pool skips the other clone's lowest free slots and returns them
+ok - a pool used by one clone is not fenced
+ok - a spawn terminated mid-fence returns the foreign slots it already leased
+# all fm-spawn-treehouse-shared-pool tests passed

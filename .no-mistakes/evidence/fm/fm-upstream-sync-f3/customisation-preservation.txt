@@ -1,0 +1,26 @@
+# Upstream sync + fork customisation preservation (base 980c3ac4 -> f5fc48ad)
+ancestor of HEAD: 9ea0c41a fix: prevent unnecessary remote worker turnover (#6431)
+ancestor of HEAD: 1935d27b test: isolate real-Rex suites on private servers (#7649)
+ancestor of HEAD: 69999915 fix(bin): correct the wedge reset-failure log line and make the fault test root-safe (#7650)
+ancestor of HEAD: 980c3ac4 test: use a neutral sample name in the x-mode Query test fixture (#6)
+upstream commits newly merged past 9ea0c41a: 119
+
+## per-file: fork customisation (9ea0c41a..980c3ac4) vs fork delta over upstream at HEAD (69999915..HEAD)
+ADAPTED    .agents/skills/fmx-respond/SKILL.md
+IDENTICAL  .agents/skills/stuck-crewmate-recovery/SKILL.md
+IDENTICAL  .gitignore
+IDENTICAL  bin/backends/herdr.sh
+ADAPTED    bin/fm-control.sh
+ADAPTED    bin/fm-spawn.sh
+IDENTICAL  bin/fm-wake-lib.sh
+IDENTICAL  bin/fm-x-poll.sh
+ADAPTED    docs/agent-control.md
+IDENTICAL  docs/architecture.md
+IDENTICAL  docs/configuration.md
+IDENTICAL  docs/herdr-backend.md
+IDENTICAL  tests/fm-control-relaunch.test.sh
+ADAPTED    tests/fm-spawn-treehouse-shared-pool.test.sh
+IDENTICAL  tests/fm-x-mode.test.sh
+
+files the fork changes beyond upstream at HEAD: 15 (fork customisation set: 15; same set: yes)
+ADAPTED = merge-resolution adaptation to upstream: fm-control.sh header prose absorbs upstream Rex reclaim; fm-spawn.sh projection helper now carries upstream's project-group order key; fmx-respond SKILL.md description merged with upstream's broadened trigger; shared-pool test fake answers upstream's new tmux window probe.
