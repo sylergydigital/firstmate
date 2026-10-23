@@ -1421,8 +1421,9 @@ SCAN_OTHER_ID=$(scan_stage "$SCAN_HOME_B" fm-delay-job.sh 1 "$TMP_ROOT/other-ran
   || fail "the scan fixture's queued jobs did not stage"
 : > "$SCAN_EXEC_LOG"
 : > "$SCAN_CHILD_LOG"
-# Direct exec, not "$BASH": the production shebang is /bin/bash, so this lane
-# runs on the stock macOS bash the same way the deployed worker does.
+# Direct exec, not "$BASH": the production shebang resolves bash through PATH,
+# so with this lane's system PATH it runs on the stock macOS bash the same way
+# the deployed worker does.
 HOME="$SCAN_ACCOUNT" PATH="$QUIET_SHIM:/usr/bin:/bin:/usr/sbin:/sbin" \
   FM_TEST_EXEC_LOG="$SCAN_EXEC_LOG" FM_ROOT_OVERRIDE="$REMOTE_ROOT" \
   FM_REMOTE_JOB_STATE_ROOT="$SCAN_STATE" FM_REMOTE_JOB_PLATFORM_OVERRIDE=Linux \

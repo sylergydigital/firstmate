@@ -120,7 +120,7 @@ start_worker() {
     fm_remote_job_start_linux_worker "$root" "$account_home" >&2 || exit 1
     deadline=$(( $(date +%s) + 10 ))
     while [ "$(date +%s)" -lt "$deadline" ]; do
-      pid=$(pgrep -f "^/bin/bash $root/bin/fm-remote-job-worker.sh\$" | head -n 1)
+      pid=$(pgrep -f "^bash $root/bin/fm-remote-job-worker.sh\$" | head -n 1)
       if pid_is_numeric "$pid"; then
         printf '%s\n' "$pid"
         exit 0
@@ -184,10 +184,12 @@ pass "a worker stops its whole tree once its code root is pruned"
 # that presents the same command line from a pruned root without that
 # self-termination - the shape of every worker started before it shipped.
 
-CASE2="$TMP_ROOT/case2"
-mkdir -p "$CASE2/remote-root/bin"
-cat > "$CASE2/remote-root/bin/fm-remote-job-worker.sh" <<'SH'
-#!/bin/bash
+# write_stand_in <remote-root> <interpreter-line>
+write_stand_in() {
+  mkdir -p "$1/bin"
+  {
+    printf '%s\n' "$2"
+    cat <<'SH'
 # Stand-in for a worker predating self-termination: a supervisor that always
 # respawns its serving child and never inspects its own code root.
 set -u
@@ -200,8 +202,13 @@ while :; do
   sleep 0.2
 done
 SH
-chmod +x "$CASE2/remote-root/bin/fm-remote-job-worker.sh"
-printf 'fixture\n' > "$CASE2/remote-root/AGENTS.md"
+  } > "$1/bin/fm-remote-job-worker.sh"
+  chmod +x "$1/bin/fm-remote-job-worker.sh"
+  printf 'fixture\n' > "$1/AGENTS.md"
+}
+
+CASE2="$TMP_ROOT/case2"
+write_stand_in "$CASE2/remote-root" '#!/bin/bash'
 
 set -m
 "$CASE2/remote-root/bin/fm-remote-job-worker.sh" >/dev/null 2>&1 &
@@ -228,3 +235,20 @@ pass "the reaper stops an abandoned worker's whole tree"
 out=$("$REAPER" 2>&1) || fail "a repeat reaper run failed: $out"
 assert_not_contains "$out" "$STALE" "the reaper reported an already-stopped worker"
 pass "the reaper is idempotent"
+
+# The env interpreter line makes ps report the worker as "bash <script>".
+CASE3="$TMP_ROOT/case3"
+write_stand_in "$CASE3/remote-root" '#!/usr/bin/env bash'
+set -m
+"$CASE3/remote-root/bin/fm-remote-job-worker.sh" >/dev/null 2>&1 &
+STALE=$!
+set +m
+track "$STALE"
+wait_child "$STALE" 10 || fail "the env stand-in worker never started its serving child"
+STALE_SERVE=$(pgrep -P "$STALE" | head -n 1)
+rm -rf "$CASE3/remote-root"
+out=$("$REAPER" 2>&1) || fail "the reaper failed: $out"
+assert_contains "$out" "$STALE" "the reaper did not report stopping the env-launched worker"
+wait_gone "$STALE" 20 || fail "the env-launched abandoned worker survived the reaper"
+wait_gone "$STALE_SERVE" 20 || fail "the env-launched worker's serving child survived the reaper"
+pass "the reaper stops an abandoned worker launched through the env interpreter line"

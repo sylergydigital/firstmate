@@ -1220,6 +1220,41 @@ test_rejects_direct_beads_cli_in_explicit_core_path() {
   pass "fm-lint.sh enforces backend purity for explicit core paths"
 }
 
+test_rejects_nonportable_interpreter_line() {
+  local tmp fakebin log lint_copy out rc
+  tmp=$(fm_test_tmproot fm-lint-interpreter-line)
+  fakebin=$(fm_fakebin "$tmp")
+  log="$tmp/shellcheck.log"
+  mkdir -p "$tmp/repo/bin/backends" "$tmp/repo/tests"
+  lint_copy="$tmp/repo/bin/fm-lint.sh"
+  cp "$LINT" "$lint_copy"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmp/repo/bin/fm-lint-workflows.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmp/repo/tests/noop.test.sh"
+  # A sourced library is not executable and needs no interpreter line.
+  printf '# shellcheck shell=bash\n:\n' > "$tmp/repo/bin/fm-example-lib.sh"
+  printf '#!/bin/bash\nexit 0\n' > "$tmp/repo/bin/fm-example.sh"
+  printf '#!/bin/bash\nexit 0\n' > "$tmp/repo/bin/backends/example.sh"
+  chmod +x "$lint_copy" "$tmp/repo/bin/fm-lint-workflows.sh" \
+    "$tmp/repo/bin/fm-example.sh" "$tmp/repo/bin/backends/example.sh"
+  fm_lint_stub_shellcheck "$fakebin" "$log"
+
+  rc=0
+  out=$(cd "$tmp/repo" && CI=true PATH="$fakebin:$PATH" "$lint_copy" 2>&1) || rc=$?
+  [ "$rc" -ne 0 ] || fail "lint accepted a hardcoded /bin/bash interpreter line"$'\n'"$out"
+  assert_contains "$out" "bin/fm-example.sh:1: executable script must start with #!/usr/bin/env bash" \
+    "lint did not name the non-portable core script"
+  assert_contains "$out" "bin/backends/example.sh:1: executable script must start with #!/usr/bin/env bash" \
+    "lint did not name the non-portable backend script"
+  case "$out" in *fm-example-lib.sh*) fail "lint flagged a non-executable library"$'\n'"$out" ;; esac
+
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmp/repo/bin/fm-example.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$tmp/repo/bin/backends/example.sh"
+  rc=0
+  out=$(cd "$tmp/repo" && CI=true PATH="$fakebin:$PATH" "$lint_copy" 2>&1) || rc=$?
+  [ "$rc" -eq 0 ] || fail "lint rejected portable interpreter lines (exit $rc)"$'\n'"$out"
+  pass "fm-lint.sh requires #!/usr/bin/env bash on executable bin scripts"
+}
+
 test_ignores_ambient_shellcheck_opts() {
   if ! pinned_ready; then
     pass "SKIP (ShellCheck $REQUIRED not resolved): ambient options regression check"
@@ -2045,6 +2080,7 @@ test_rejects_wrong_shellcheck_version
 test_catches_a_real_lint_defect
 test_rejects_direct_beads_cli_invocations
 test_rejects_direct_beads_cli_in_explicit_core_path
+test_rejects_nonportable_interpreter_line
 test_ignores_ambient_shellcheck_opts
 test_clean_fixture_passes
 test_jobs_are_deterministic_and_complete

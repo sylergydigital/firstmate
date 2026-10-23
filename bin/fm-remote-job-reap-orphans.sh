@@ -57,7 +57,8 @@ TXT
 # The code root a worker command line was launched from, echoed only when the
 # command is unambiguously a worker invocation: an absolute script path ending
 # in the worker suffix, optionally preceded by the interpreter ps reports as
-# "/bin/bash <script>", with at most the --serve argument after it.
+# "/bin/bash <script>" or, through the env shebang, "bash <script>", with at
+# most the --serve argument after it.
 reap_worker_root() { # <command>
   local command=$1 path prefix leading
   case "$command" in
@@ -66,6 +67,8 @@ reap_worker_root() { # <command>
     *) return 1 ;;
   esac
   prefix=${path%"$REAP_SUFFIX"}
+  # The env interpreter line leaves ps a bare "bash" ahead of the script.
+  case "$prefix" in "bash /"*) prefix=${prefix#bash } ;; esac
   case "$prefix" in /*) ;; *) return 1 ;; esac
   leading=${prefix%% *}
   # Drop the leading token only when it really is the interpreter binary, so a
