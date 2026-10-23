@@ -1657,6 +1657,49 @@ test_landed_includes_secondmate_home_merges() {
   pass "landed includes secondmate-managed merges alongside main-home merges"
 }
 
+# Teardown closes a PR its forge did not confirm merged with a body note. A row
+# noted closed unmerged delivered nothing, so neither this home nor a
+# secondmate home lists it under Recently Landed; a row noted merge unconfirmed
+# stays listed with that note as its artifact rather than claiming the merge.
+test_landed_excludes_closed_unmerged_and_marks_unconfirmed_prs() {
+  local home fakebin json mate backlog prefix failures=''
+  [ -n "$TASKS_AXI_BIN" ] || fail "tasks-axi is required for the unmerged-PR landed regression"
+  home=$(make_home unmerged-pr-landed); write_fixture "$home"
+  fakebin=$(make_fakebin "$home")
+  mate=$(fixture_mate_home "$home")
+  for prefix in main mate; do
+    backlog="$home/data/backlog.md"
+    [ "$prefix" = main ] || backlog="$mate/data/backlog.md"
+    "$TASKS_AXI_BIN" add "$prefix-closed-pr" "Closed without merge" --kind ship \
+      --repo firstmate --start --file "$backlog" >/dev/null \
+      || fail "could not create the $prefix closed-unmerged row"
+    "$TASKS_AXI_BIN" 'done' "$prefix-closed-pr" \
+      --note "PR closed unmerged: https://github.com/o/r/pull/71" --file "$backlog" >/dev/null \
+      || fail "could not close the $prefix closed-unmerged row"
+    "$TASKS_AXI_BIN" add "$prefix-unconfirmed-pr" "Merge not confirmed" --kind ship \
+      --repo firstmate --start --file "$backlog" >/dev/null \
+      || fail "could not create the $prefix unconfirmed row"
+    "$TASKS_AXI_BIN" 'done' "$prefix-unconfirmed-pr" \
+      --note "PR merge unconfirmed: https://github.com/o/r/pull/72" --file "$backlog" >/dev/null \
+      || fail "could not close the $prefix unconfirmed row"
+  done
+
+  json=$(run "$home" "$fakebin" --json --all-landed) \
+    || fail "Bearings failed with closed-unmerged and unconfirmed PR rows"
+  for prefix in main mate; do
+    printf '%s' "$json" | jq -e --arg id "$prefix-closed-pr" \
+      '.landed | any(.id == $id) | not' >/dev/null \
+      || failures="${failures}$prefix closed-unmerged PR was listed as landed; "
+    printf '%s' "$json" | jq -e --arg id "$prefix-unconfirmed-pr" \
+      '.landed | any(.id == $id and .artifact == "PR merge unconfirmed: https://github.com/o/r/pull/72")' >/dev/null \
+      || failures="${failures}$prefix unconfirmed PR did not carry its note as the artifact; "
+  done
+  printf '%s' "$json" | jq -e '(.landed | any(.id == "done-a")) and (.landed | any(.id == "mate-landed"))' >/dev/null \
+    || failures="${failures}merged deliveries dropped out of the section; "
+  [ -z "$failures" ] || fail "${failures}landed: $(printf '%s' "$json" | jq -c '.landed')"
+  pass "Recently Landed drops closed-unmerged PRs and marks unconfirmed merges in every home"
+}
+
 # Recently Landed accepts only the artifact owned by a row's task kind and
 # completion path. Answered captain questions are the negative boundary.
 test_landed_accepts_only_kind_owned_delivery_artifacts() {
@@ -3380,6 +3423,7 @@ test_current_landed_baseline_is_repeatable_and_prior_report_independent
 test_default_is_bounded_and_local_only
 test_toon_json_parity
 test_landed_includes_secondmate_home_merges
+test_landed_excludes_closed_unmerged_and_marks_unconfirmed_prs
 test_landed_accepts_only_kind_owned_delivery_artifacts
 test_kind_fallback_matches_tasks_axi_word_boundaries
 test_landed_preserves_kindless_v1_summary_reports

@@ -2118,6 +2118,46 @@ test_recovery_backfills_a_recorded_link_on_an_already_done_item() {
   pass "recovery backfills recorded links onto already Done items"
 }
 
+test_recovery_replays_a_closed_unmerged_close_idempotently() {
+  local case_dir id marker out real_date pr_url=https://github.com/example/repo/pull/14
+  id=atomic-heal-closed-unmerged-b9
+  case_dir=$(make_home heal-closed-unmerged)
+  add_item "$case_dir" "$id"
+  start_item "$case_dir" "$id"
+  marker="$(home_of "$case_dir")/state/$id.backlog-close"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-closed\narg=--closed-pr\narg=%s\n' \
+    "$id" "$(home_of "$case_dir")/data" "$pr_url" > "$marker"
+
+  out=$(run_bootstrap "$case_dir")
+  [ "$(row_state "$case_dir" "$id")" = "done" ] \
+    || fail "session start left a recorded closed-unmerged close at $(row_state "$case_dir" "$id"): $out"
+  assert_absent "$marker" "a replayed closed-unmerged close left its record behind"
+
+  # The same close replayed on a later day, as when cleanup died after the
+  # close landed but before it retired its record.
+  real_date=$(type -P date)
+  cat > "$case_dir/fakebin/date" <<SH
+#!/usr/bin/env bash
+[ "\$*" = +%Y-%m-%d ] && { echo 2099-01-02; exit 0; }
+exec "$real_date" "\$@"
+SH
+  chmod +x "$case_dir/fakebin/date"
+  printf 'id=%s\ndata=%s\nspawn_gen=spawn-heal-closed\narg=--closed-pr\narg=%s\n' \
+    "$id" "$(home_of "$case_dir")/data" "$pr_url" > "$marker"
+  out=$(run_bootstrap "$case_dir")
+  [ "$(row_state "$case_dir" "$id")" = "done" ] \
+    || fail "replaying a closed-unmerged close changed the closed row: $out"
+  assert_grep "PR closed unmerged: $pr_url" "$(backlog_of "$case_dir")" \
+    "the replayed close did not record its PR as closed unmerged"
+  [ "$(grep -c 'PR closed unmerged' "$(backlog_of "$case_dir")")" = 1 ] \
+    || fail "a replayed closed-unmerged close recorded its PR twice: $(cat "$(backlog_of "$case_dir")")"
+  if grep -F '(merged ' "$(backlog_of "$case_dir")" >/dev/null; then
+    fail "a replayed closed-unmerged close was recorded as merged: $(cat "$(backlog_of "$case_dir")")"
+  fi
+  assert_absent "$marker" "a second replay left its closed-unmerged record behind"
+  pass "a replayed closed-unmerged close records its PR once, never as merged"
+}
+
 test_recovery_preserves_a_close_when_the_backlog_cannot_be_read() {
   local case_dir id out
   id=atomic-heal-read-error-b10
@@ -3126,6 +3166,7 @@ test_recovery_ignores_a_symlinked_worker_record
 test_recovery_replays_a_close_an_interrupted_cleanup_left_open
 test_recovery_replays_a_gerrit_close_with_its_change_url_as_a_note
 test_recovery_backfills_a_recorded_link_on_an_already_done_item
+test_recovery_replays_a_closed_unmerged_close_idempotently
 test_recovery_preserves_a_close_when_the_backlog_cannot_be_read
 test_recovery_retry_preserves_incomplete_cleanup_warning
 test_recovery_finishes_a_close_for_the_same_meta_incarnation

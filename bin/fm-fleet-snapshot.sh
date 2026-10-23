@@ -512,6 +512,7 @@ backlog_json() (  # [<backlog-path>] - defaults to this home's $BACKLOG
              pr_url:((links($rest) | map(select(test("/pull/[0-9]+"))) | .[0]) // null),
              report_path:cap($rest; ".*(?<v>data/[^[:space:])]+/report\\.md).*"),
              local_note:local_note($rest),
+             pr_note:null,
              raw:$line,
              body_lines:[],
              body_excerpt:null}
@@ -542,6 +543,8 @@ backlog_json() (  # [<backlog-path>] - defaults to this home's $BACKLOG
                   then null
                   else cap(.body_lines[-1]; "^(?<v>local main)$")
                   end))
+          | .pr_note = (first(.body_lines[]
+              | select(test("^PR (closed unmerged|merge unconfirmed): https://"))) // null)
           | .body_excerpt = ((.body_lines | join(" "))[:240])
         else . end)
     | .records as $records
@@ -1017,7 +1020,8 @@ secondmate_home_summary_json() {  # <backlog-json-file> <tasks-json-file>
             hold_kind:((.hold_kind // null) | if . == null then null else trunc(40) end),
             pr_url:((.pr_url // null) | if . == null then null else trunc(500) end),
             report_path:((.report_path // null) | if . == null then null else trunc(500) end),
-            local_note:((.local_note // null) | if . == null then null else trunc(120) end),completion} ]
+            local_note:((.local_note // null) | if . == null then null else trunc(120) end),
+            pr_note:((.pr_note // null) | if . == null then null else trunc(540) end),completion} ]
        | sort_by([(.completion.date // ""), .id]) | reverse) as $landed_all
     | ([ $tasks[] | select(.current_state.state == "unknown") ]) as $unknown_children
     | ([ $owned_in_flight[]

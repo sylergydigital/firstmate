@@ -1084,6 +1084,36 @@ test_ship_and_scout_teach_validation_round_pause() {
   pass "fm-brief.sh: ship and scout scaffolds declare a validation-round pause once, then hold it"
 }
 
+# Cleanup deletes the worker's copy, so a deliverable built from a folder - a
+# static site deployed from it, say - keeps its source in the task's data
+# directory. A scout is told so as plainly as a ship worker, and its rule 2 no
+# longer limits outside writes to the report and status file alone.
+test_ship_and_scout_keep_built_artefact_sources_in_task_data() {
+  local home kind id brief
+  home="$TMP_ROOT/built-artefact-source-home"
+  mkdir -p "$home/data"
+  for kind in ship scout; do
+    id="brief-built-artefact-$kind"
+    if [ "$kind" = scout ]; then
+      FM_HOME="$home" "$ROOT/bin/fm-brief.sh" "$id" firstmate --scout >/dev/null 2>&1
+    else
+      FM_HOME="$home" "$ROOT/bin/fm-brief.sh" "$id" firstmate --mode no-mistakes >/dev/null 2>&1
+    fi
+    brief="$home/data/$id/brief.md"
+    assert_present "$brief" "$kind brief was not scaffolded"
+    assert_grep "keep its source under \`$home/data/$id/\`" "$brief" \
+      "$kind brief did not keep a built artefact's source in the task's data directory"
+    assert_grep "never only in this disposable worktree, which cleanup deletes." "$brief" \
+      "$kind brief did not say cleanup deletes a built artefact's source left in the worktree"
+  done
+  brief="$home/data/brief-built-artefact-scout/brief.md"
+  assert_grep "the only files you may write outside it are the report, the status file below, and a built artefact's source." "$brief" \
+    "scout brief's outside-worktree rule did not allow a built artefact's source"
+  assert_no_grep "the only files you may write outside it are the report and the status file below." "$brief" \
+    "scout brief still limits outside-worktree writes to the report and status file"
+  pass "fm-brief.sh: ship and scout briefs keep a built artefact's source in the task's data directory"
+}
+
 test_scout_and_secondmate_load_decision_hold_policy() {
   local home scout charter
   home="$TMP_ROOT/decision-policy-home"
@@ -1662,6 +1692,7 @@ test_secondmate_directory_paths_are_absolute_and_output_is_stable
 test_pause_verb_override_renders_all_brief_scaffolds
 test_ship_and_scout_teach_validation_round_pause
 test_scout_and_secondmate_load_decision_hold_policy
+test_ship_and_scout_keep_built_artefact_sources_in_task_data
 test_scout_and_secondmate_scaffold
 test_scout_lavish_line_follows_presentation_floor
 test_inbox_listing_command_is_safe_on_empty_inbox

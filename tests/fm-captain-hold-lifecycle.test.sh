@@ -3028,6 +3028,7 @@ SH
 
 test_answer_before_cleanup_replay_notes_a_retained_gerrit_change() {
   local home id repo wt rc show real_tasks_axi gerrit_url=https://gerrit.example.com/c/project/+/12345
+  local closed_url=https://github.com/sample/sample/pull/27
   home=$(make_home answer-before-replay-gerrit)
   id=sample-answer-before-replay-gerrit
   repo="$home/projects/sample"
@@ -3080,7 +3081,55 @@ SH
   assert_contains "$show" "state: done" "the answer did not close the Gerrit row"
   assert_contains "$show" "Gerrit change $gerrit_url" \
     "the answer dropped the retained Gerrit change URL"
-  pass "an answer before cleanup replay notes the retained Gerrit change"
+
+  home=$(make_home answer-before-replay-closed-pr)
+  id=sample-answer-before-replay-closed-pr
+  repo="$home/projects/sample"
+  wt="$home/projects/$id"
+  fm_git_worktree "$repo" "$wt" fm/answer-before-replay-closed-pr
+  tasks_in "$home" add "$id" "Ship the held closed pull request" --kind ship \
+    --repo sample --start >/dev/null || fail "could not create the held closed-PR answer fixture"
+  fm_write_meta "$home/state/$id.meta" \
+    "window=firstmate:fm-$id" "endpoint_task_id=$id" "worktree=$wt" \
+    "project=$repo" "harness=codex" "kind=ship" "mode=no-mistakes" \
+    "pr=$closed_url" "spawn_gen=fixture-$id"
+  printf 'done: pull request closed\n' > "$home/state/$id.status"
+  run_captain "$home" hold "$id" --reason "captain must choose the follow-up" >/dev/null \
+    || fail "could not hold the closed-PR task for the captain"
+  cat > "$home/fakebin/gh" <<'SH'
+#!/usr/bin/env bash
+case "${1:-} ${2:-}" in
+  "api graphql") printf '%s\n' state=CLOSED merged=false ; exit 0 ;;
+esac
+exit 0
+SH
+  cat > "$home/fakebin/treehouse" <<'SH'
+#!/usr/bin/env bash
+exit 1
+SH
+  chmod +x "$home/fakebin/gh" "$home/fakebin/treehouse"
+
+  set +e
+  PATH="$home/fakebin:$PATH" FM_ROOT_OVERRIDE="$ROOT" FM_HOME="$home" \
+    FM_STATE_OVERRIDE="$home/state" FM_DATA_OVERRIDE="$home/data" \
+    FM_CONFIG_OVERRIDE="$home/config" "$TEARDOWN" "$id" --force \
+    > "$home/teardown.out" 2> "$home/teardown.err"
+  rc=$?
+  set -e
+  [ "$rc" -ne 0 ] || fail "closed-PR cleanup succeeded despite the failed worktree return"
+  assert_present "$home/state/$id.backlog-close" \
+    "the interrupted closed-PR cleanup lost its retained-artifact record"
+
+  printf 'Leave the closed pull request closed.\n' > "$home/answer.txt"
+  run_captain "$home" answer "$id" --decision-file "$home/answer.txt" >/dev/null \
+    || fail "the captain could not answer a closed-PR task before cleanup replay"
+  show=$(tasks_in "$home" show "$id" --full) || fail "the answered closed-PR row is gone"
+  assert_contains "$show" "state: done" "the answer did not close the closed-PR row"
+  assert_contains "$show" "PR closed unmerged: $closed_url" \
+    "the answer dropped the retained closed-unmerged pull request"
+  assert_not_contains "$show" "pr:$closed_url" \
+    "the answer recorded a closed-unmerged pull request as the row's pr link"
+  pass "an answer before cleanup replay notes the retained Gerrit change and closed-unmerged pull request"
 }
 
 test_unusable_pending_close_record_names_its_reason() {

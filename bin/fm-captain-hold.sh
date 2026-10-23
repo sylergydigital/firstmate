@@ -1207,6 +1207,9 @@ apply_pending_retained_artifact() {  # <task-id>
   [ "$FM_BACKLOG_CLOSE_VALIDATED_MODE" = retain ] || return 0
   args=("${FM_BACKLOG_CLOSE_VALIDATED_ARGS[@]+"${FM_BACKLOG_CLOSE_VALIDATED_ARGS[@]}"}")
   case "${args[0]-}" in
+    --closed-pr|--unconfirmed-pr)
+      RETAINED_CLOSE_ARGS=(--note "$(fm_backlog_unmerged_pr_note "${args[0]}" "${args[1]-}")")
+      ;;
     --pr|--report)
       if [ "${args[0]}" = --pr ] && label=$(fm_backlog_pr_note_label "${args[1]-}"); then
         RETAINED_CLOSE_ARGS=(--note "$label ${args[1]}")
