@@ -1,0 +1,63 @@
+09:50:55	LAB	lab=/tmp/fm-lab.VTdgV1 root=/tmp/fm-base.QbQYJG FM_POLL=2 FM_PAUSE_RESURFACE_SECS=60
+09:50:57	LAB	fm-pr-check.sh held-merge https://github.com/kunchenguid/firstmate/pull/7677 -> armed: state/held-merge.check.sh
+09:50:58	LAB	fm-pr-check.sh stable-merge https://github.com/kunchenguid/firstmate/pull/7676 -> armed: state/stable-merge.check.sh
+09:51:00	LAB	fm-pr-check.sh blocked-pr https://github.com/kunchenguid/firstmate/pull/7670 -> armed: state/blocked-pr.check.sh
+09:51:02	LAB	fm-pr-check.sh rework-merge https://github.com/kunchenguid/firstmate/pull/7674 -> armed: state/rework-merge.check.sh
+09:51:02	LAB	no PR recorded for unrecorded (control)
+09:51:13	ARM	watcher: started pid=1185585 (beacon fresh)|check: contributions blocked-pr 6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e
+09:51:13	WAKE	1792749069	1	check	contribution-6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e	check: contributions blocked-pr 6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e
+09:51:15	ACK		(rc=0)
+09:51:18	ARM	watcher: started pid=1207970 (beacon fresh)|signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	2	signal	blocked-pr.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	3	signal	held-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	4	signal	rework-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	5	signal	stable-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	6	signal	unrecorded.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	7	signal	blocked-pr.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749077	8	signal	held-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749078	9	signal	rework-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749078	10	signal	stable-merge.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:18	WAKE	1792749078	11	signal	unrecorded.status	signal: /tmp/fm-lab.VTdgV1/state/blocked-pr.status /tmp/fm-lab.VTdgV1/state/held-merge.status /tmp/fm-lab.VTdgV1/state/rework-merge.status /tmp/fm-lab.VTdgV1/state/stable-merge.status /tmp/fm-lab.VTdgV1/state/unrecorded.status
+09:51:21	ACK		(rc=0)
+09:51:28	ARM	watcher: started pid=1219258 (beacon fresh)|stale: primary:fm-blocked-pr
+09:51:28	WAKE	1792749088	12	stale	primary:fm-blocked-pr	stale: primary:fm-blocked-pr
+09:51:30	ACK		(rc=0)
+09:51:31	ARM	watcher: started pid=1232143 (beacon fresh)|stale: primary:fm-stable-merge
+09:51:31	WAKE	1792749091	13	stale	primary:fm-stable-merge	stale: primary:fm-stable-merge
+09:51:33	ACK		(rc=0)
+09:51:42	ARM	watcher: started pid=1237296 (beacon fresh)|stale: primary:fm-held-merge
+09:51:42	WAKE	1792749102	14	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:51:43	ACK		(rc=0)
+09:51:51	ARM	watcher: started pid=1254848 (beacon fresh)|stale: primary:fm-held-merge
+09:51:51	WAKE	1792749110	15	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:51:53	ACK		(rc=0)
+09:52:06	ARM	watcher: started pid=1275298 (beacon fresh)|stale: primary:fm-held-merge
+09:52:06	WAKE	1792749126	16	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:08	ACK		(rc=0)
+09:52:15	ARM	watcher: started pid=1300195 (beacon fresh)|stale: primary:fm-held-merge
+09:52:15	WAKE	1792749135	17	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:17	ACK		(rc=0)
+09:52:29	ARM	watcher: started pid=1316787 (beacon fresh)|stale: primary:fm-held-merge
+09:52:29	WAKE	1792749149	18	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:31	ACK		(rc=0)
+09:52:37	ARM	watcher: started pid=1351768 (beacon fresh)|stale: primary:fm-held-merge
+09:52:37	WAKE	1792749157	19	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:39	ACK		(rc=0)
+09:52:45	ARM	watcher: started pid=1363731 (beacon fresh)|stale: primary:fm-held-merge
+09:52:45	WAKE	1792749165	20	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:47	ACK		(rc=0)
+09:52:54	ARM	watcher: started pid=1377887 (beacon fresh)|stale: primary:fm-held-merge
+09:52:54	WAKE	1792749174	21	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:52:55	ACK		(rc=0)
+09:53:03	ARM	watcher: started pid=1392147 (beacon fresh)|stale: primary:fm-held-merge
+09:53:03	WAKE	1792749182	22	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:53:05	ACK		(rc=0)
+09:53:18	ARM	watcher: started pid=1415087 (beacon fresh)|stale: primary:fm-held-merge
+09:53:18	WAKE	1792749198	23	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:53:20	ACK		(rc=0)
+09:53:27	ARM	watcher: started pid=1462041 (beacon fresh)|stale: primary:fm-held-merge
+09:53:27	WAKE	1792749207	24	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:53:29	ACK		(rc=0)
+09:53:32	ARM	watcher: started pid=1476281 (beacon fresh)|watcher: FAILED - watcher cycle exited 143 without an actionable reason
+09:53:33	LAB	stopped
+09:53:33	LAB	lab removed

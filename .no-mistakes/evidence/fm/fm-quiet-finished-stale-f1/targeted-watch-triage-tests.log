@@ -1,0 +1,9 @@
+ok - a finished worker with a recorded PR stays quiet and reminds once per interval, churning or stable
+ok - a recorded PR bounds only a finished worker's stale alarm, never a blocker's
+ok - a recorded PR never reminds while the captain is away, and reminds once on return
+ok - a steer after the recorded-PR bound started voids it, so a silent rework stall alarms
+ok - a steer after a released captain call voids the recorded-PR bound, so a silent rework stall alarms
+ok - a steer after the PR is recorded voids the bound even when no declaration was ever written
+ok - a steer acknowledged after the done: line voids the recorded-PR bound even though it was written before it
+ok - a stable pane drops its recorded-PR marker once the bound stops applying
+ok - a pre-validation done: handoff after rework keeps its stale alarm despite the recorded PR

@@ -1,0 +1,18 @@
+# lab /tmp/fm-lab.lnBsvQ (no crew tasks); real bin/fm-watch-arm.sh + bin/fm-wake-drain.sh
+$ watcher running pid=1823174; simulate a crash: kill -9 the watcher and its arm
+$ cat state/.watcher-down  -> (absent)
+$ bin/fm-watch-arm.sh   (re-arm after the crash; runs until its first wake)
+  check: rearm-resurface
+$ cat state/.watcher-down  -> announced:downtime:1824084.1792749428.BrFBaP
+$ cat state/.wake-queue
+
+$ bin/fm-wake-drain.sh
+  WAKE_ACK_REQUIRED: after handling completes run bin/fm-wake-drain.sh --ack-through 0 --recovery-generation 1824084.1792749428.BrFBaP
+$ bin/fm-wake-drain.sh --ack-through 0 --recovery-generation 1824084.1792749428.BrFBaP
+  wake drain: acknowledged through 0 - no wake rows to consume; recovery episode 1824084.1792749428.BrFBaP acknowledged
+$ cat state/.watcher-down  -> acked:handling:1824084.1792749428.BrFBaP
+$ bin/fm-wake-drain.sh --ack-through 0 --recovery-generation 1824084.1792749428.BrFBaP   (replayed)
+  wake drain: acknowledged through 0 - nothing left to consume (already acknowledged)
+$ bin/fm-wake-drain.sh --ack-through 0 --recovery-generation 1824084.1792749428.BrFBaP; echo "rc=$?"   (replayed again)
+  wake drain: acknowledged through 0 - nothing left to consume (already acknowledged)
+  rc=0

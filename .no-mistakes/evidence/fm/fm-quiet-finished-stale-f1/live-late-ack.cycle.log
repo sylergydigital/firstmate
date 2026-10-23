@@ -1,0 +1,21 @@
+09:52:39	LAB	case=late-ack lab=/tmp/fm-lab.t1oEGA root=/home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5KWZ4HFXVTATECJ3YESR8QP FM_POLL=2 FM_PAUSE_RESURFACE_SECS=60
+09:52:42	LAB	STEER late-ack while it is still in its last turn: ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+09:52:44	LAB	worker appended done: PR https://github.com/kunchenguid/firstmate/pull/7677 checks green (after the steer was written, before reading it)
+09:52:45	LAB	fm-pr-check.sh late-ack https://github.com/kunchenguid/firstmate/pull/7677 -> armed: state/late-ack.check.sh
+09:52:50	ARM	watcher: started pid=1372150 (beacon fresh)|signal: /tmp/fm-lab.t1oEGA/state/late-ack.status
+09:52:50	WAKE	1792749170	1	signal	late-ack.status	signal: /tmp/fm-lab.t1oEGA/state/late-ack.status
+09:52:50	WAKE	1792749170	2	signal	late-ack.status	signal: /tmp/fm-lab.t1oEGA/state/late-ack.status
+09:52:51	ACK	wake drain: acknowledged through 2 - 2 wake row(s) consumed	(rc=0)
+09:53:26	LAB	worker read the steer only now and moved it to handled/ (record mtime still predates the done: line)
+09:53:35	ARM	watcher: started pid=1384887 (beacon fresh)|stale: primary:fm-late-ack
+09:53:35	WAKE	1792749215	3	stale	primary:fm-late-ack	stale: primary:fm-late-ack
+09:53:37	ACK	wake drain: acknowledged through 3 - 1 wake row(s) consumed	(rc=0)
+09:53:43	ARM	watcher: started pid=1487708 (beacon fresh)|stale: primary:fm-late-ack
+09:53:43	WAKE	1792749223	4	stale	primary:fm-late-ack	stale: primary:fm-late-ack
+09:53:45	ACK	wake drain: acknowledged through 4 - 1 wake row(s) consumed	(rc=0)
+09:54:01	ARM	watcher: started pid=1498564 (beacon fresh)|stale: primary:fm-late-ack
+09:54:01	WAKE	1792749240	5	stale	primary:fm-late-ack	stale: primary:fm-late-ack
+09:54:03	ACK	wake drain: acknowledged through 5 - 1 wake row(s) consumed	(rc=0)
+09:54:06	ARM	watcher: started pid=1529856 (beacon fresh)|watcher: FAILED - watcher cycle exited 143 without an actionable reason
+09:54:07	LAB	stopped
+09:54:07	LAB	lab removed

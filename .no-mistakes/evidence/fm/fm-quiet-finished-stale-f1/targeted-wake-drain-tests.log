@@ -1,0 +1,5 @@
+ok - wake drain: a successful or replayed acknowledgement prints one clear result line
+ok - wake drain: a recovery-only acknowledgement names the episode it retired, and only its replay is already acknowledged
+wake drain: acknowledged through 1 - 1 wake row(s) consumed
+wake drain: acknowledged through 2 - 1 wake row(s) consumed
+ok - wake drain: an acknowledgement that consumes nothing says so and names the exact command for the current wake

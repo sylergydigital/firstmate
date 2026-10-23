@@ -1,0 +1,76 @@
+09:46:02	LAB	lab=/tmp/fm-lab.01PCGw root=/home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5KWZ4HFXVTATECJ3YESR8QP FM_POLL=2 FM_PAUSE_RESURFACE_SECS=60
+09:46:05	LAB	fm-pr-check.sh held-merge https://github.com/kunchenguid/firstmate/pull/7677 -> armed: state/held-merge.check.sh
+09:46:07	LAB	fm-pr-check.sh stable-merge https://github.com/kunchenguid/firstmate/pull/7676 -> armed: state/stable-merge.check.sh
+09:46:08	LAB	fm-pr-check.sh blocked-pr https://github.com/kunchenguid/firstmate/pull/7670 -> armed: state/blocked-pr.check.sh
+09:46:10	LAB	fm-pr-check.sh rework-merge https://github.com/kunchenguid/firstmate/pull/7674 -> armed: state/rework-merge.check.sh
+09:46:10	LAB	no PR recorded for unrecorded (control)
+09:46:21	ARM	watcher: started pid=686279 (beacon fresh)|check: contributions blocked-pr 6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e
+09:46:21	WAKE	1792748779	1	check	contribution-6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e	check: contributions blocked-pr 6b6d8701d6927a68f99543c43f95a67df90e77d76101d1a27eec2a34088ffd9e
+09:46:24	ACK	wake drain: acknowledged through 1 - 1 wake row(s) consumed	(rc=0)
+09:46:27	ARM	watcher: started pid=711529 (beacon fresh)|signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748786	2	signal	blocked-pr.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748786	3	signal	held-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748786	4	signal	rework-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	5	signal	stable-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	6	signal	unrecorded.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	7	signal	blocked-pr.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	8	signal	held-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	9	signal	rework-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	10	signal	stable-merge.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:27	WAKE	1792748787	11	signal	unrecorded.status	signal: /tmp/fm-lab.01PCGw/state/blocked-pr.status /tmp/fm-lab.01PCGw/state/held-merge.status /tmp/fm-lab.01PCGw/state/rework-merge.status /tmp/fm-lab.01PCGw/state/stable-merge.status /tmp/fm-lab.01PCGw/state/unrecorded.status
+09:46:29	ACK	wake drain: acknowledged through 11 - 10 wake row(s) consumed	(rc=0)
+09:46:36	ARM	watcher: started pid=729813 (beacon fresh)|stale: primary:fm-blocked-pr
+09:46:36	WAKE	1792748796	12	stale	primary:fm-blocked-pr	stale: primary:fm-blocked-pr
+09:46:38	ACK	wake drain: acknowledged through 12 - 1 wake row(s) consumed	(rc=0)
+09:46:50	ARM	watcher: started pid=746796 (beacon fresh)|stale: primary:fm-unrecorded
+09:46:50	WAKE	1792748809	13	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:46:52	ACK	wake drain: acknowledged through 13 - 1 wake row(s) consumed	(rc=0)
+09:47:06	ARM	watcher: started pid=775027 (beacon fresh)|stale: primary:fm-unrecorded
+09:47:06	WAKE	1792748826	14	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:47:08	ACK	wake drain: acknowledged through 14 - 1 wake row(s) consumed	(rc=0)
+09:47:22	ARM	watcher: started pid=798655 (beacon fresh)|stale: primary:fm-unrecorded
+09:47:22	WAKE	1792748842	15	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:47:24	ACK	wake drain: acknowledged through 15 - 1 wake row(s) consumed	(rc=0)
+09:47:39	ARM	watcher: started pid=819970 (beacon fresh)|stale: primary:fm-unrecorded
+09:47:39	WAKE	1792748858	16	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:47:40	ACK	wake drain: acknowledged through 16 - 1 wake row(s) consumed	(rc=0)
+09:47:44	ARM	watcher: started pid=866216 (beacon fresh)|stale: primary:fm-stable-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 100s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:47:44	WAKE	1792748863	17	stale	primary:fm-stable-merge	stale: primary:fm-stable-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 100s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:47:46	ACK	wake drain: acknowledged through 17 - 1 wake row(s) consumed	(rc=0)
+09:47:53	ARM	watcher: started pid=878627 (beacon fresh)|stale: primary:fm-rework-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7674 still awaits a merge decision or cleanup, status unchanged for 110s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:47:53	WAKE	1792748873	18	stale	primary:fm-rework-merge	stale: primary:fm-rework-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7674 still awaits a merge decision or cleanup, status unchanged for 110s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:47:55	ACK	wake drain: acknowledged through 18 - 1 wake row(s) consumed	(rc=0)
+09:48:02	ARM	watcher: started pid=898427 (beacon fresh)|stale: primary:fm-held-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7677 still awaits a merge decision or cleanup, status unchanged for 119s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:48:02	WAKE	1792748882	19	stale	primary:fm-held-merge	stale: primary:fm-held-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7677 still awaits a merge decision or cleanup, status unchanged for 119s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:48:04	ACK	wake drain: acknowledged through 19 - 1 wake row(s) consumed	(rc=0)
+09:48:17	ARM	watcher: started pid=911423 (beacon fresh)|stale: primary:fm-unrecorded
+09:48:17	WAKE	1792748897	20	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:48:19	ACK	wake drain: acknowledged through 20 - 1 wake row(s) consumed	(rc=0)
+09:48:26	ARM	watcher: started pid=932081 (beacon fresh)|stale: primary:fm-unrecorded
+09:48:26	WAKE	1792748906	21	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:48:28	ACK	wake drain: acknowledged through 21 - 1 wake row(s) consumed	(rc=0)
+09:48:41	ARM	watcher: started pid=955045 (beacon fresh)|stale: primary:fm-unrecorded
+09:48:41	WAKE	1792748921	22	stale	primary:fm-unrecorded	stale: primary:fm-unrecorded
+09:48:41	LAB	STEER held-merge: fm-send: doorbell not typed because the agent in primary:fm-held-merge has exited; the steer is durably recorded at /tmp/fm-lab.01PCGw/state/held-merge.inbox/001.msg for recovery (stuck-crewmate-recovery), and the watcher will not re-ring a dead pane
+09:48:43	ACK	wake drain: acknowledged through 22 - 1 wake row(s) consumed	(rc=0)
+09:48:44	LAB	STEER rework-merge: WARNING: queued wakes pending - drain them with bin/fm-wake-drain.sh before anything else.
+09:48:44	ARM	watcher: started pid=981699 (beacon fresh)|stale: primary:fm-stable-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 161s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:48:44	WAKE	1792748924	23	stale	primary:fm-stable-merge	stale: primary:fm-stable-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 161s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:48:45	LAB	rework-merge worker appended its pre-validation handoff: done: addressed the review
+09:48:46	ACK	wake drain: acknowledged through 23 - 1 wake row(s) consumed	(rc=0)
+09:48:48	ARM	watcher: started pid=989100 (beacon fresh)|signal: /tmp/fm-lab.01PCGw/state/rework-merge.status
+09:48:48	WAKE	1792748928	24	signal	rework-merge.status	signal: /tmp/fm-lab.01PCGw/state/rework-merge.status
+09:48:48	WAKE	1792748928	25	signal	rework-merge.status	signal: /tmp/fm-lab.01PCGw/state/rework-merge.status
+09:48:50	ACK	wake drain: acknowledged through 25 - 2 wake row(s) consumed	(rc=0)
+09:48:57	ARM	watcher: started pid=1000947 (beacon fresh)|stale: primary:fm-held-merge
+09:48:57	WAKE	1792748937	26	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:48:59	ACK	wake drain: acknowledged through 26 - 1 wake row(s) consumed	(rc=0)
+09:49:06	ARM	watcher: started pid=1013878 (beacon fresh)|stale: primary:fm-held-merge
+09:49:06	WAKE	1792748945	27	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:49:08	ACK	wake drain: acknowledged through 27 - 1 wake row(s) consumed	(rc=0)
+09:49:15	ARM	watcher: started pid=1024710 (beacon fresh)|stale: primary:fm-held-merge
+09:49:15	WAKE	1792748955	28	stale	primary:fm-held-merge	stale: primary:fm-held-merge
+09:49:18	ACK	wake drain: acknowledged through 28 - 1 wake row(s) consumed	(rc=0)
+09:49:30	ARM	watcher: started pid=1042515 (beacon fresh)|watcher: FAILED - watcher cycle exited 143 without an actionable reason
+09:49:31	LAB	stopped
+09:49:31	LAB	lab removed

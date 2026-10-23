@@ -1,0 +1,31 @@
+Stale wakes per crew window during the 150s churn phase (FM_POLL=2, FM_PAUSE_RESURFACE_SECS=60, panes tick every 8s)
+Tasks: held-merge/rework-merge churn + recorded PR; stable-merge stable + recorded PR; unrecorded churn, no PR recorded (control); blocked-pr blocked: + recorded PR
+
+BASE a7c1b963 (live-base.cycle.log, 09:51:13-09:53:32):
+  primary:fm-blocked-pr      1
+  primary:fm-held-merge      11
+  primary:fm-stable-merge    1
+  acknowledgement result lines printed: 0 of 15
+
+CHANGE 4134524e (live-new.cycle.log, 09:46:21 until the steer at 09:48:41):
+  primary:fm-blocked-pr      1
+  primary:fm-held-merge      1
+  primary:fm-rework-merge    1
+  primary:fm-stable-merge    1
+  primary:fm-unrecorded      6
+  acknowledgement result lines printed: 18 of 18
+  recorded-PR stale wakes are reminders naming the PR:
+   09:47:44  stale: primary:fm-stable-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup,...
+   09:47:53  stale: primary:fm-rework-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7674 still awaits a merge decision or cleanup,...
+   09:48:02  stale: primary:fm-held-merge (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7677 still awaits a merge decision or cleanup, s...
+
+CHANGE after firstmate steered held-merge (bin/fm-send.sh at 09:48:41, worker moved it to handled/):
+   09:48:57  stale: primary:fm-held-merge
+   09:49:06  stale: primary:fm-held-merge
+   09:49:15  stale: primary:fm-held-merge
+
+Notes:
+- The watcher exits on its first wake each cycle, and the three churning panes tick in lock-step. In the base run held-merge, which sorts first, won every cycle, so unrecorded and rework-merge were never scanned (0 counted). That starvation predates this change. In the changed run held-merge is absorbed, so the unrecorded control is scanned and alarms on each new hash (6), as it did before.
+- stable-merge reminded at 09:47:44 and again at 09:48:44, exactly one FM_PAUSE_RESURFACE_SECS apart, and its first stale sight was absorbed. The base run alarmed on first sight, then never again.
+- Focused single-task labs: live-rework.cycle.log (a pre-validation `done:` naming no PR keeps its immediate plain alarm), live-late-ack.cycle.log (a steer written before `done:` but moved to handled/ after it voids the bound), and live-away.cycle.log (no reminder while the away record exists, one per task on return).
+- live-ack-results.txt: a recovery-only acknowledgement names the retired episode, and its replay says it was already acknowledged.

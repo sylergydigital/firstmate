@@ -1,0 +1,27 @@
+09:50:59	LAB	case=rework lab=/tmp/fm-lab.zWoo9q root=/home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5KWZ4HFXVTATECJ3YESR8QP FM_POLL=2 FM_PAUSE_RESURFACE_SECS=60
+09:51:01	LAB	fm-pr-check.sh rework-merge https://github.com/kunchenguid/firstmate/pull/7674 -> armed: state/rework-merge.check.sh
+09:51:06	ARM	watcher: started pid=1183580 (beacon fresh)|signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:06	WAKE	1792749065	1	signal	rework-merge.status	signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:06	WAKE	1792749066	2	signal	rework-merge.status	signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:07	ACK	wake drain: acknowledged through 2 - 2 wake row(s) consumed	(rc=0)
+09:51:43	LAB	STEER rework-merge: fm-gate-refuse: gate agent lifecycle permitted only against lab home /tmp/fm-lab.zWoo9q
+09:51:45	LAB	worker acted on the steer, then appended its pre-validation handoff: done: addressed the review
+09:51:48	ARM	watcher: started pid=1195623 (beacon fresh)|signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:48	WAKE	1792749108	3	signal	rework-merge.status	signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:48	WAKE	1792749108	4	signal	rework-merge.status	signal: /tmp/fm-lab.zWoo9q/state/rework-merge.status
+09:51:49	ACK	wake drain: acknowledged through 4 - 2 wake row(s) consumed	(rc=0)
+09:52:00	ARM	watcher: started pid=1267461 (beacon fresh)|stale: primary:fm-rework-merge
+09:52:00	WAKE	1792749120	5	stale	primary:fm-rework-merge	stale: primary:fm-rework-merge
+09:52:02	ACK	wake drain: acknowledged through 5 - 1 wake row(s) consumed	(rc=0)
+09:52:10	ARM	watcher: started pid=1290103 (beacon fresh)|stale: primary:fm-rework-merge
+09:52:10	WAKE	1792749130	6	stale	primary:fm-rework-merge	stale: primary:fm-rework-merge
+09:52:11	ACK	wake drain: acknowledged through 6 - 1 wake row(s) consumed	(rc=0)
+09:52:17	ARM	watcher: started pid=1306503 (beacon fresh)|stale: primary:fm-rework-merge
+09:52:17	WAKE	1792749137	7	stale	primary:fm-rework-merge	stale: primary:fm-rework-merge
+09:52:18	ACK	wake drain: acknowledged through 7 - 1 wake row(s) consumed	(rc=0)
+09:52:24	ARM	watcher: started pid=1321936 (beacon fresh)|stale: primary:fm-rework-merge
+09:52:24	WAKE	1792749144	8	stale	primary:fm-rework-merge	stale: primary:fm-rework-merge
+09:52:25	ACK	wake drain: acknowledged through 8 - 1 wake row(s) consumed	(rc=0)
+09:52:30	ARM	watcher: started pid=1339419 (beacon fresh)|watcher: FAILED - watcher cycle exited 143 without an actionable reason
+09:52:31	LAB	stopped
+09:52:31	LAB	lab removed

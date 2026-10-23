@@ -1,0 +1,20 @@
+09:54:21	LAB	case=away lab=/tmp/fm-lab.e9r3D2 root=/home/admin_mmunem_altostrat_com/.no-mistakes/worktrees/86e7a0a30077/01M5KWZ4HFXVTATECJ3YESR8QP FM_POLL=2 FM_PAUSE_RESURFACE_SECS=60
+09:54:24	LAB	fm-pr-check.sh away-churn https://github.com/kunchenguid/firstmate/pull/7677 -> armed: state/away-churn.check.sh
+09:54:25	LAB	fm-pr-check.sh away-stable https://github.com/kunchenguid/firstmate/pull/7676 -> armed: state/away-stable.check.sh
+09:54:26	LAB	away: Away posture recorded at 2026-10-23T09:54:25Z: hold-for-return only. No phone channel is configured; anything that needs you waits for your return. Your away instructions are recorded verbatim; the away session will carry them out where it can, and anything it is unsure of, or that needs you, waits for your return. Destructive, irreversible, and security-sensitive actions are never pre-authorizable, whatever the words say. Expected return: not given. Spend cap: 4 concurrent workers.
+09:54:34	ARM	watcher: started pid=1571864 (beacon fresh)|signal: /tmp/fm-lab.e9r3D2/state/away-churn.status /tmp/fm-lab.e9r3D2/state/away-stable.status
+09:54:34	WAKE	1792749274	1	signal	away-churn.status	signal: /tmp/fm-lab.e9r3D2/state/away-churn.status /tmp/fm-lab.e9r3D2/state/away-stable.status
+09:54:34	WAKE	1792749274	2	signal	away-stable.status	signal: /tmp/fm-lab.e9r3D2/state/away-churn.status /tmp/fm-lab.e9r3D2/state/away-stable.status
+09:54:34	WAKE	1792749274	3	signal	away-churn.status	signal: /tmp/fm-lab.e9r3D2/state/away-churn.status /tmp/fm-lab.e9r3D2/state/away-stable.status
+09:54:34	WAKE	1792749274	4	signal	away-stable.status	signal: /tmp/fm-lab.e9r3D2/state/away-churn.status /tmp/fm-lab.e9r3D2/state/away-stable.status
+09:54:36	ACK	wake drain: acknowledged through 4 - 4 wake row(s) consumed	(rc=0)
+09:56:06	LAB	return: archived /tmp/fm-lab.e9r3D2/state/afk-contracts/1792749265.afk-contract
+09:56:06	ARM	watcher: started pid=1590981 (beacon fresh)|stale: primary:fm-away-churn (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7677 still awaits a merge decision or cleanup, status unchanged for 105s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:56:06	WAKE	1792749366	5	stale	primary:fm-away-churn	stale: primary:fm-away-churn (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7677 still awaits a merge decision or cleanup, status unchanged for 105s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:56:10	ACK	wake drain: acknowledged through 5 - 1 wake row(s) consumed	(rc=0)
+09:56:12	ARM	watcher: started pid=1744190 (beacon fresh)|stale: primary:fm-away-stable (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 108s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:56:12	WAKE	1792749372	6	stale	primary:fm-away-stable	stale: primary:fm-away-stable (finished, its recorded PR https://github.com/kunchenguid/firstmate/pull/7676 still awaits a merge decision or cleanup, status unchanged for 108s; a reminder once per 60s, not a wedge - remind the captain of the pending merge, or clean up the task if it has landed)
+09:56:15	ACK	wake drain: acknowledged through 6 - 1 wake row(s) consumed	(rc=0)
+09:56:46	ARM	watcher: started pid=1751360 (beacon fresh)|watcher: FAILED - watcher cycle exited 143 without an actionable reason
+09:56:47	LAB	stopped
+09:56:47	LAB	lab removed
