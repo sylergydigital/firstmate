@@ -801,18 +801,36 @@ test_teardown_records_a_closed_unmerged_pr_as_closed() {
 }
 
 test_teardown_records_an_unconfirmed_pr_as_unconfirmed() {
-  local case_dir out err pr_url=https://github.com/example/repo/pull/7 reading
-  for reading in unreadable OPEN; do
+  local case_dir out err pr_url=https://github.com/example/repo/pull/7 reading started elapsed
+  for reading in unreadable OPEN hung; do
     case_dir=$(make_case "tasks-axi-close-unconfirmed-$reading")
     write_meta "$case_dir" no-mistakes ship
     printf 'pr=%s\n' "$pr_url" >> "$case_dir/state/task-x1.meta"
     seed_backlog_in_flight "$case_dir"
     # The default gh and gh-axi fakes fail every PR read, as a forge outage does.
-    [ "$reading" = unreadable ] || add_forge_pr_state "$case_dir" "$reading"
+    case "$reading" in
+      unreadable) ;;
+      hung)
+        cat > "$case_dir/fakebin/gh" <<'SH'
+#!/usr/bin/env bash
+case "${1:-} ${2:-}" in
+  "api graphql") sleep 120 ; printf '%s\n' state=MERGED merged=true ; exit 0 ;;
+  "pr view") echo "error: pull request not found" >&2 ; exit 1 ;;
+esac
+exit 0
+SH
+        chmod +x "$case_dir/fakebin/gh"
+        ;;
+      *) add_forge_pr_state "$case_dir" "$reading" ;;
+    esac
 
+    started=$SECONDS
     out=$(run_teardown "$case_dir" 2> "$case_dir/stderr") \
       || fail "teardown of a task whose PR is $reading failed: $out $(cat "$case_dir/stderr")"
+    elapsed=$((SECONDS - started))
     err=$(cat "$case_dir/stderr")
+    [ "$elapsed" -lt 60 ] \
+      || fail "teardown waited ${elapsed}s on a $reading forge read instead of bounding it"
     [ "$(backlog_row_state "$case_dir")" = "done" ] \
       || fail "teardown left the $reading task's backlog item at $(backlog_row_state "$case_dir"): $out $err"
     assert_grep "PR merge unconfirmed: $pr_url" "$case_dir/data/backlog.md" \
@@ -830,7 +848,7 @@ test_teardown_records_an_unconfirmed_pr_as_unconfirmed() {
     assert_absent "$case_dir/state/task-x1.backlog-close" \
       "an unconfirmed close left its pending-close record behind"
   done
-  pass "teardown records a PR whose state is unreadable or still open as unconfirmed with a warning, never as merged"
+  pass "teardown records a PR whose state is unreadable, still open, or not answered in time as unconfirmed with a warning, never as merged"
 }
 
 test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note() {

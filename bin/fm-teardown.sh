@@ -1743,12 +1743,16 @@ work_is_landed() {
 # a --pr link as merged, so a GitHub or Forgejo PR keeps --pr only when its
 # forge, read through bin/fm-pr-lib.sh's record readers, confirms it merged.
 # One the forge reports closed without merging becomes --closed-pr; a read
-# error, a still-open PR, or a URL that does not parse becomes --unconfirmed-pr
-# with a warning. A Gerrit change or GitLab merge request keeps --pr, which the
-# backlog records as a labelled note that never reads as merged.
+# error, a read that does not answer within 5 seconds, a still-open PR, or a
+# URL that does not parse becomes --unconfirmed-pr with a warning. A Gerrit
+# change or GitLab merge request keeps --pr, which the backlog records as a
+# labelled note that never reads as merged.
 pr_close_flag() {
-  local verdict
-  verdict=$( fm_pr_url_parse "$PR_URL" || exit 0
+  local verdict rc=0
+  # shellcheck disable=SC2016  # The inner script expands after bash -c receives positional args.
+  verdict=$(fm_run_timed 5 bash -c '
+    . "$1"
+    fm_pr_url_parse "$2" || exit 0
     case "$FM_PR_PROVIDER" in
       github) fm_pr_github_read_record "$FM_PR_OWNER" "$FM_PR_REPO" "$FM_PR_NUMBER" ;;
       forgejo) fm_pr_forgejo_read_record "$FM_PR_HOST" "$FM_PR_PATH" "$FM_PR_NUMBER" ;;
@@ -1759,9 +1763,15 @@ pr_close_flag() {
     else
       case "$FM_PR_RECORD_STATE" in
         CLOSED|closed) echo closed ;;
-        *) printf 'state %s\n' "$FM_PR_RECORD_STATE" ;;
+        *) printf "state %s\n" "$FM_PR_RECORD_STATE" ;;
       esac
-    fi )
+    fi
+  ' _ "$SCRIPT_DIR/fm-pr-lib.sh" "$PR_URL" 2>/dev/null) || rc=$?
+  if fm_timed_out "$rc"; then
+    verdict="no forge answer within 5s"
+  elif [ "$rc" -ne 0 ]; then
+    verdict=
+  fi
   case "$verdict" in
     merged|labelled) printf '%s\n' --pr ;;
     closed) printf '%s\n' --closed-pr ;;
