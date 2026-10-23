@@ -74,21 +74,23 @@
 #   positional, and batch pairs are all refused alongside it; only harness,
 #   model, and effort may change, which is what makes a harness switch one
 #   ordinary relaunch. It refuses unless the recorded endpoint is positively
-#   agent-free on a backend with a recovery-grade agent-state classifier (tmux
-#   or herdr), and clears the previous harness's per-task wiring before arming
-#   the new incarnation. Two verdicts are agent-free: a `dead` endpoint is
-#   ADOPTED as-is, while an endpoint PROVEN gone is RE-CREATED in the recorded
-#   worktree and recorded Herdr workspace and the republished record rebinds
-#   the task to it. When that workspace was the task's own one-task projection
+#   agent-free on a backend with a recovery-grade agent-state classifier (tmux,
+#   herdr, or rex), and clears the previous harness's per-task wiring before
+#   arming the new incarnation. Two verdicts are agent-free: a `dead` endpoint
+#   is ADOPTED as-is, while an endpoint PROVEN gone is RE-CREATED in the
+#   recorded worktree (on Herdr, in the recorded workspace; on Rex, in the
+#   recorded session while it survives) and the republished record rebinds the
+#   task to it. When a Herdr workspace was the task's own one-task projection
 #   and vanished with the pane, the replacement is instead a recreated
 #   projection, or with presentation now off, a flat tab in the projection's
 #   recorded parent workspace. The absence proof is its own step, because a
 #   backend's `missing` also covers an endpoint that is merely unreachable from
 #   here - and it is only available on HERDR, which must still read the
-#   recorded pane as gone once that session's server is running again. A tmux
-#   `missing` always refuses: a task record carries no socket identity for its
-#   endpoint, so no read here can tell a destroyed window from one on a tmux
-#   server this process cannot address. An endpoint that turns out to have
+#   recorded pane as gone once that session's server is running again, and on
+#   REX, whose recorded server must answer not-found for the recorded block.
+#   A tmux `missing` always refuses: a task record carries no socket identity
+#   for its endpoint, so no read here can tell a destroyed window from one on a
+#   tmux server this process cannot address. An endpoint that turns out to have
 #   survived refuses too. The worktree is reused untouched either way; a rebind
 #   is a recovery, never a teardown. Only a crewmate or scout rebinds: a
 #   secondmate whose endpoint is gone is respawned by its own owner
