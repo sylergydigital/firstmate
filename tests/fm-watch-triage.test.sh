@@ -4956,6 +4956,29 @@ test_recorded_pr_marker_dropped_once_the_bound_stops_applying() {
   pass "a stable pane drops its recorded-PR marker once the bound stops applying"
 }
 
+# A no-mistakes rework round on an already-recorded PR: the captain asked for a
+# change, the worker acted on the steer, and its new `done:` is the
+# pre-validation handoff that names no PR, because the reworked head is neither
+# validated nor pushed. That delivery is new to firstmate, so its stale sight
+# keeps the immediate plain alarm instead of becoming a merge reminder.
+test_recorded_pr_rework_handoff_keeps_its_alarm() {
+  local dir state out capture
+  dir=$(make_pr_home recorded-pr-rework 'done: PR https://example.invalid/pull/7 checks green') \
+    || fail "could not build a recorded-PR fixture"
+  state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
+
+  hold_watch_churn "$dir" "$out" "$capture" 'idle, tick' 1 \
+    || fail "watcher exited on a finished worker with a recorded PR: $(cat "$out")"
+  [ "$(hold_stale_wakes "$state")" -eq 0 ] || fail "the recorded-PR first sight alarmed"
+
+  write_handled_steer "$state"
+  set_mtime "$(( $(date +%s) - 5 ))" "$state/held-merge.inbox/handled"
+  printf 'done: addressed the review\n' >> "$state/held-merge.status"
+  printf '%s' "$(seen_sig "$state/held-merge.status")" > "$state/.seen-held-merge_status"
+  steered_stall_alarms "$dir" 1
+  pass "a pre-validation done: handoff after rework keeps its stale alarm despite the recorded PR"
+}
+
 test_recorded_pr_keeps_other_verbs_alarming() {
   local dir state out capture wakes
   dir=$(make_pr_home recorded-pr-blocked 'blocked: the PR needs a release-host credential') \
@@ -7575,6 +7598,7 @@ test_recorded_pr_steer_after_released_captain_call_alarms
 test_recorded_pr_recorded_after_first_alarm_steer_alarms
 test_recorded_pr_steer_handled_after_done_alarms
 test_recorded_pr_marker_dropped_once_the_bound_stops_applying
+test_recorded_pr_rework_handoff_keeps_its_alarm
 test_secondmate_paused_resurfaces_in_normal_mode
 test_secondmate_captain_held_resurfaces_in_normal_mode
 test_secondmate_nonpaused_stale_remains_suppressed

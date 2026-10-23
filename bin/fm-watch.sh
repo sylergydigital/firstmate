@@ -33,7 +33,7 @@
 #                          applies does the log's latest recognized status event decide:
 #                          terminal (captain-relevant) or non-terminal (no verb),
 #                          both surfaced at once, except that a finished `done:`
-#                          task whose PR firstmate recorded (pr= meta) is absorbed
+#                          line naming the PR firstmate recorded (pr= meta) is absorbed
 #                          from its first sight and reminds once per
 #                          PAUSE_RESURFACE_SECS with a reason naming that PR
 #                          (recorded_pr_stale_bound). A provably-working stale past the
@@ -232,6 +232,11 @@ WATCH_HOME_EXISTED=0
 # watcher consumes only its identity-bound record after a poll observes landing.
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/fm-merge-authority-lib.sh"
+# The ship Definition-of-done owner, for the PR a `done:` line names
+# (recorded_pr_stale_bound). It is a canonical lint root in its own right, so it
+# is an analysis boundary here for the same reason as the owners above.
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/fm-dod-lib.sh"
 # shellcheck source=bin/fm-x-lib.sh
 . "$SCRIPT_DIR/fm-x-lib.sh"
 # shellcheck source=bin/fm-check-lib.sh
@@ -2524,8 +2529,8 @@ captain_call_stale_bound() {  # <window-key> <task>
 }
 
 # The record of a finished worker's wait that needs no backlog hold: a `done:`
-# delivery whose PR firstmate already recorded through bin/fm-pr-check.sh (the
-# task's pr= meta). Recording it is firstmate's own act after reading that
+# delivery naming the PR firstmate already recorded through bin/fm-pr-check.sh
+# (the task's pr= meta). Recording it is firstmate's own act after reading that
 # delivery, and the PR then waits on the merge decision or, once it lands, on
 # cleanup - neither of which a repeated stale alarm can advance, while the merge
 # poll already wakes firstmate when the PR lands or closes. So unlike the
@@ -2544,7 +2549,9 @@ captain_call_stale_bound() {  # <window-key> <task>
 # at all, as for the captain-call bound: the return brief lists the merge.
 # Sets STALE_WAIT_DECLARATION and RECORDED_PR only when the bound applies.
 # Returns 0 to absorb; 1 to alarm (the reminder is due, or the bound does not
-# apply). A first-sight marker that cannot be written alarms as today.
+# apply). A first-sight marker that cannot be written alarms as today. A later
+# `done:` that names no PR, such as the no-mistakes pre-validation handoff after
+# rework, is a delivery firstmate has not acted on yet, so it alarms as before.
 RECORDED_PR=
 recorded_pr_stale_bound() {  # <window-key> <task>
   local key=$1 task=$2 last verb pr rec declaration throttle
@@ -2556,6 +2563,7 @@ recorded_pr_stale_bound() {  # <window-key> <task>
   [ "$verb" = "done" ] || return 1
   pr=$(fm_meta_get "$STATE/$task.meta" pr)
   [ -n "$pr" ] || return 1
+  [ "$(fm_dod_pr_url_from_done_note "$(status_line_note "$last")")" = "$pr" ] || return 1
   for rec in "$STATE/$task.inbox"/*.msg "$STATE/$task.inbox/handled"; do
     [ "$rec" -nt "$STATE/$task.status" ] && return 1
   done
@@ -3963,7 +3971,8 @@ EOF
             # configured is what keeps a leftover marker from holding a window
             # here once the operator has turned the cap back off.
             wedge_timer_check "$w" "$ssf" "stale (overridden terminal status)" "$ewf" "$task" "$h" "$dialog"
-          elif recorded_pr_reminder_due "$key" && ! recorded_pr_stale_bound "$key" "$task"; then
+          elif recorded_pr_reminder_due "$key" && ! away_record_present \
+            && ! recorded_pr_stale_bound "$key" "$task"; then
             # The same hash, absorbed by the recorded-PR bound, has reached its
             # interval with nothing newer: the one reminder it owes. A bound that
             # no longer applies owes none, and its marker goes with it, so this
