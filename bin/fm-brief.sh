@@ -698,11 +698,12 @@ $HERDR_SECTION
 $SETUP_BASE
 This is a SCOUT task: the deliverable is a written report, not a PR.
 The worktree is your laboratory - install, run, edit, and make scratch commits freely; all of it is discarded at teardown.
-The report is the only thing that survives, so anything worth keeping must be in it.
+Only the report and a built artefact's source kept as rule 2 says survive, so anything else worth keeping must be in the report.
 
 # Rules
 1. Never push to any remote and never open a PR.
-2. Stay inside this worktree; the only files you may write outside it are the report and the status file below.
+2. Stay inside this worktree; the only files you may write outside it are the report, the status file below, and a built artefact's source.
+   When the deliverable includes a built artefact, such as a static site deployed from a folder, keep its source under \`$DATA/$ID/\` beside the report, never only in this disposable worktree, which cleanup deletes.
 3. Use gh-axi for GitHub operations and chrome-devtools-axi for browser operations.
 4. Report status by appending one line:
    \`$STATUS_APPEND\`

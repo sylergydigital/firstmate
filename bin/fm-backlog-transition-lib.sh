@@ -531,10 +531,16 @@ fm_backlog_pr_note_label() {  # <url>
 }
 
 # tasks-axi renders every close carrying a --pr link as merged, so a pull
-# request its forge reports closed without merging arrives here as --closed-pr
-# and is recorded as a dated note instead, never as the row's pr link.
-fm_backlog_closed_pr_note() {  # <url>
-  printf 'PR closed unmerged %s: %s\n' "$(date +%Y-%m-%d)" "$1"
+# request its forge does not confirm merged arrives here as --closed-pr (the
+# forge reports it closed without merging) or --unconfirmed-pr (the forge state
+# could not be read, or the PR is still open), and is recorded as a note
+# instead, never as the row's pr link. Fails for any other flag.
+fm_backlog_unmerged_pr_note() {  # <flag> <url>
+  case "$1" in
+    --closed-pr) printf 'PR closed unmerged: %s\n' "$2" ;;
+    --unconfirmed-pr) printf 'PR merge unconfirmed: %s\n' "$2" ;;
+    *) return 1 ;;
+  esac
 }
 
 fm_backlog_done() {  # <data-dir> <id> [flag...]
@@ -542,9 +548,9 @@ fm_backlog_done() {  # <data-dir> <id> [flag...]
   local -a done_args=()
   shift 2
   for arg in "$@"; do
-    if [ "$previous_arg" = --closed-pr ]; then
+    if label=$(fm_backlog_unmerged_pr_note "$previous_arg" "$arg"); then
       done_args[${#done_args[@]}-1]=--note
-      done_args+=("$(fm_backlog_closed_pr_note "$arg")")
+      done_args+=("$label")
     elif [ "$previous_arg" = --pr ] && label=$(fm_backlog_pr_note_label "$arg"); then
       done_args[${#done_args[@]}-1]=--note
       done_args+=("$label $arg")
@@ -598,7 +604,9 @@ fm_backlog_retain() {  # <data-dir> <id> [flag...]
           deliverable="${deliverable:+$deliverable; }$(fm_backlog_pr_note_label "$arg") $arg"
         fi
         ;;
-      --closed-pr) deliverable="${deliverable:+$deliverable; }$(fm_backlog_closed_pr_note "$arg")" ;;
+      --closed-pr|--unconfirmed-pr)
+        deliverable="${deliverable:+$deliverable; }$(fm_backlog_unmerged_pr_note "$previous_arg" "$arg")"
+        ;;
       --note) deliverable="${deliverable:+$deliverable; }$arg" ;;
     esac
     previous_arg=$arg
@@ -995,7 +1003,7 @@ fm_backlog_close_marker_validate() {  # <marker-path> <authorized-data-dir> <exp
     2)
       case "${args[0]}" in
         --note) [ "${args[1]}" = "local%20main" ] ;;
-        --pr|--closed-pr)
+        --pr|--closed-pr|--unconfirmed-pr)
           arg_value=${args[1]}
           [ "${#arg_value}" -le 2048 ] \
             && case "$arg_value" in https://*) true ;; *) false ;; esac \

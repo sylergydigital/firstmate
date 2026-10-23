@@ -749,33 +749,88 @@ test_teardown_closes_the_backlog_item_itself() {
   pass "teardown closes its own backlog item before reporting success"
 }
 
-test_teardown_records_a_closed_unmerged_pr_as_closed() {
-  local case_dir out pr_url=https://github.com/example/repo/pull/7
-  case_dir=$(make_case tasks-axi-close-closed-unmerged)
-  write_meta "$case_dir" no-mistakes ship
-  printf 'pr=%s\n' "$pr_url" >> "$case_dir/state/task-x1.meta"
-  seed_backlog_in_flight "$case_dir"
-  cat > "$case_dir/fakebin/gh" <<'SH'
+# Override the forge reads of the recorded PR to report it MERGED, CLOSED, or
+# OPEN: gh's GraphQL record for a GitHub PR, and tea's REST record for a
+# Forgejo PR on forgejo.example.com. Viewing a PR through gh still fails.
+add_forge_pr_state() {
+  local case_dir=$1 state=$2 merged=false forgejo_state=closed
+  [ "$state" = MERGED ] && merged=true
+  [ "$state" = OPEN ] && forgejo_state=open
+  cat > "$case_dir/fakebin/gh" <<SH
 #!/usr/bin/env bash
-case "${1:-} ${2:-}" in
-  "api graphql") printf '%s\n' state=CLOSED merged=false ; exit 0 ;;
+case "\${1:-} \${2:-}" in
+  "api graphql") printf '%s\n' state=$state merged=$merged ; exit 0 ;;
   "pr view") echo "error: pull request not found" >&2 ; exit 1 ;;
 esac
 exit 0
 SH
-  chmod +x "$case_dir/fakebin/gh"
+  cat > "$case_dir/fakebin/tea" <<SH
+#!/usr/bin/env bash
+if [ "\${1:-} \${2:-}" = "login list" ]; then
+  printf '[{"name":"fj","url":"https://forgejo.example.com"}]\n'
+  exit 0
+fi
+[ "\${1:-}" = api ] || exit 1
+printf '{"state":"%s","merged":%s,"head":{"sha":"%s"}}\n' '$forgejo_state' '$merged' \
+  0000000000000000000000000000000000000000
+SH
+  chmod +x "$case_dir/fakebin/gh" "$case_dir/fakebin/tea"
+}
 
-  out=$(run_teardown "$case_dir" 2>&1) || fail "teardown of a task whose PR closed unmerged failed: $out"
-  [ "$(backlog_row_state "$case_dir")" = "done" ] \
-    || fail "teardown left a closed-unmerged task's backlog item at $(backlog_row_state "$case_dir"): $out"
-  assert_grep "PR closed unmerged $(date +%Y-%m-%d): $pr_url" "$case_dir/data/backlog.md" \
-    "closed-unmerged backlog item did not record its PR as closed with the date"
-  if grep -F '(merged ' "$case_dir/data/backlog.md" >/dev/null; then
-    fail "a PR closed without merging was recorded as merged: $(cat "$case_dir/data/backlog.md")"
-  fi
-  assert_absent "$case_dir/state/task-x1.backlog-close" \
-    "a closed-unmerged close left its pending-close record behind"
-  pass "teardown records a PR closed without merging as closed with the date, never as merged"
+test_teardown_records_a_closed_unmerged_pr_as_closed() {
+  local case_dir out pr_url
+  for pr_url in https://github.com/example/repo/pull/7 https://forgejo.example.com/example/repo/pulls/7; do
+    case_dir=$(make_case "tasks-axi-close-closed-unmerged-$(printf '%s' "${pr_url#https://}" | cut -d. -f1)")
+    write_meta "$case_dir" no-mistakes ship
+    printf 'pr=%s\n' "$pr_url" >> "$case_dir/state/task-x1.meta"
+    seed_backlog_in_flight "$case_dir"
+    add_forge_pr_state "$case_dir" CLOSED
+
+    out=$(run_teardown "$case_dir" 2>&1) || fail "teardown of a task whose PR $pr_url closed unmerged failed: $out"
+    [ "$(backlog_row_state "$case_dir")" = "done" ] \
+      || fail "teardown left a closed-unmerged task's backlog item at $(backlog_row_state "$case_dir"): $out"
+    assert_grep "PR closed unmerged: $pr_url" "$case_dir/data/backlog.md" \
+      "closed-unmerged backlog item did not record $pr_url as closed"
+    if grep -F '(merged ' "$case_dir/data/backlog.md" >/dev/null; then
+      fail "a PR closed without merging was recorded as merged: $(cat "$case_dir/data/backlog.md")"
+    fi
+    assert_absent "$case_dir/state/task-x1.backlog-close" \
+      "a closed-unmerged close left its pending-close record behind"
+  done
+  pass "teardown records a GitHub or Forgejo PR closed without merging as closed, never as merged"
+}
+
+test_teardown_records_an_unconfirmed_pr_as_unconfirmed() {
+  local case_dir out err pr_url=https://github.com/example/repo/pull/7 reading
+  for reading in unreadable OPEN; do
+    case_dir=$(make_case "tasks-axi-close-unconfirmed-$reading")
+    write_meta "$case_dir" no-mistakes ship
+    printf 'pr=%s\n' "$pr_url" >> "$case_dir/state/task-x1.meta"
+    seed_backlog_in_flight "$case_dir"
+    # The default gh and gh-axi fakes fail every PR read, as a forge outage does.
+    [ "$reading" = unreadable ] || add_forge_pr_state "$case_dir" "$reading"
+
+    out=$(run_teardown "$case_dir" 2> "$case_dir/stderr") \
+      || fail "teardown of a task whose PR is $reading failed: $out $(cat "$case_dir/stderr")"
+    err=$(cat "$case_dir/stderr")
+    [ "$(backlog_row_state "$case_dir")" = "done" ] \
+      || fail "teardown left the $reading task's backlog item at $(backlog_row_state "$case_dir"): $out $err"
+    assert_grep "PR merge unconfirmed: $pr_url" "$case_dir/data/backlog.md" \
+      "the $reading PR was not recorded as unconfirmed"
+    if grep -F '(merged ' "$case_dir/data/backlog.md" >/dev/null; then
+      fail "a $reading PR was recorded as merged: $(cat "$case_dir/data/backlog.md")"
+    fi
+    if tasks-axi show task-x1 --file "$case_dir/data/backlog.md" | grep -F "pr:$pr_url" >/dev/null; then
+      fail "a $reading PR was recorded as the row's pr link"
+    fi
+    case "$err" in
+      *"warning: the forge did not confirm $pr_url merged"*) ;;
+      *) fail "teardown recorded a $reading PR as unconfirmed without warning: $err" ;;
+    esac
+    assert_absent "$case_dir/state/task-x1.backlog-close" \
+      "an unconfirmed close left its pending-close record behind"
+  done
+  pass "teardown records a PR whose state is unreadable or still open as unconfirmed with a warning, never as merged"
 }
 
 test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note() {
@@ -815,6 +870,7 @@ SH
   write_meta "$case_dir" no-mistakes ship
   printf '%s\n' 'pr=https://github.com/example/repo/pull/7' >> "$case_dir/state/task-x1.meta"
   seed_backlog_in_flight "$case_dir"
+  add_forge_pr_state "$case_dir" MERGED
   cp "$TMP_ROOT/tasks-axi-close-gerrit/fakebin/tasks-axi" "$case_dir/fakebin/tasks-axi"
   out=$(run_teardown "$case_dir" 2>&1) || fail "teardown of a landed GitHub task failed: $out"
   tasks-axi show task-x1 --file "$case_dir/data/backlog.md" \
@@ -863,6 +919,7 @@ SH
     write_meta "$case_dir" no-mistakes ship
     printf 'pr=%s\n' "$url" >> "$case_dir/state/task-x1.meta"
     seed_backlog_in_flight "$case_dir"
+    add_forge_pr_state "$case_dir" MERGED
     cp "$TMP_ROOT/tasks-axi-close-gitlab/fakebin/tasks-axi" "$case_dir/fakebin/tasks-axi"
     out=$(run_teardown "$case_dir" 2>&1) || fail "teardown of a landed task with $url failed: $out"
     tasks-axi show task-x1 --file "$case_dir/data/backlog.md" \
@@ -5650,6 +5707,7 @@ test_retained_sources_still_reach_the_ordinary_refusal
 test_local_only_fork_remote_allows
 test_teardown_closes_the_backlog_item_itself
 test_teardown_records_a_closed_unmerged_pr_as_closed
+test_teardown_records_an_unconfirmed_pr_as_unconfirmed
 test_teardown_closes_a_gerrit_task_with_its_change_url_as_a_note
 test_teardown_closes_a_gitlab_task_with_its_merge_request_url_as_a_note
 test_teardown_manual_backend_leaves_the_backlog_to_the_operator

@@ -1739,27 +1739,47 @@ work_is_landed() {
   content_in_default
 }
 
-# Does the forge report the recorded PR closed without merging? GitHub and
-# Forgejo are read through bin/fm-pr-lib.sh's record readers; any other forge,
-# a read error, or any other state answers no, keeping the plain PR link.
-pr_closed_unmerged() {
-  ( fm_pr_url_parse "$PR_URL" || exit 1
+# The flag the backlog close records the recorded PR under. tasks-axi renders
+# a --pr link as merged, so a GitHub or Forgejo PR keeps --pr only when its
+# forge, read through bin/fm-pr-lib.sh's record readers, confirms it merged.
+# One the forge reports closed without merging becomes --closed-pr; a read
+# error, a still-open PR, or a URL that does not parse becomes --unconfirmed-pr
+# with a warning. A Gerrit change or GitLab merge request keeps --pr, which the
+# backlog records as a labelled note that never reads as merged.
+pr_close_flag() {
+  local verdict
+  verdict=$( fm_pr_url_parse "$PR_URL" || exit 0
     case "$FM_PR_PROVIDER" in
-      github) fm_pr_github_read_record "${FM_PR_PATH%%/*}" "${FM_PR_PATH#*/}" "$FM_PR_NUMBER" ;;
+      github) fm_pr_github_read_record "$FM_PR_OWNER" "$FM_PR_REPO" "$FM_PR_NUMBER" ;;
       forgejo) fm_pr_forgejo_read_record "$FM_PR_HOST" "$FM_PR_PATH" "$FM_PR_NUMBER" ;;
-      *) exit 1 ;;
-    esac || exit 1
-    [ "$FM_PR_RECORD_MERGED" = false ] || exit 1
-    case "$FM_PR_RECORD_STATE" in CLOSED|closed) ;; *) exit 1 ;; esac )
+      *) echo labelled; exit 0 ;;
+    esac || exit 0
+    if [ "$FM_PR_RECORD_MERGED" = true ]; then
+      echo merged
+    else
+      case "$FM_PR_RECORD_STATE" in
+        CLOSED|closed) echo closed ;;
+        *) printf 'state %s\n' "$FM_PR_RECORD_STATE" ;;
+      esac
+    fi )
+  case "$verdict" in
+    merged|labelled) printf '%s\n' --pr ;;
+    closed) printf '%s\n' --closed-pr ;;
+    *)
+      echo "warning: the forge did not confirm $PR_URL merged (${verdict:-its state could not be read}); the backlog close for $ID records it as unconfirmed, not merged" >&2
+      printf '%s\n' --unconfirmed-pr
+      ;;
+  esac
 }
 
-# The completion links this teardown already holds locally. A scout's
+# The completion links this teardown records on the backlog row. A scout's
 # deliverable is its report, a local-only ship lands on local main, and every
-# other ship carries the PR recorded on its own record - as --closed-pr when
-# the forge reports it closed unmerged, so the close never reads as merged.
+# other ship carries the PR recorded on its own record under pr_close_flag's
+# verdict. Computed before the Herdr presentation lock is taken, so the forge
+# read never holds that session-wide lock.
 BACKLOG_DONE_ARGS=()
 backlog_done_args() {
-  local data_relative
+  local data_relative pr_flag
   BACKLOG_DONE_ARGS=()
   case "$KIND" in
     scout)
@@ -1769,10 +1789,9 @@ backlog_done_args() {
     *)
       if [ "$MODE" = local-only ]; then
         BACKLOG_DONE_ARGS=(--note "local main")
-      elif [ -n "$PR_URL" ] && pr_closed_unmerged; then
-        BACKLOG_DONE_ARGS=(--closed-pr "$PR_URL")
       elif [ -n "$PR_URL" ]; then
-        BACKLOG_DONE_ARGS=(--pr "$PR_URL")
+        pr_flag=$(pr_close_flag)
+        BACKLOG_DONE_ARGS=("$pr_flag" "$PR_URL")
       fi
       ;;
   esac
@@ -3638,6 +3657,13 @@ if teardown_owns_worktree && [ -d "$WT" ] && [ "$FORCE" != "--force" ]; then
   fi
 fi
 
+if [ "$TEARDOWN_BACKLOG_APPLIES" = 1 ]; then
+  backlog_done_args || {
+    echo "error: the pending backlog $TEARDOWN_BACKLOG_TRANSITION for $ID is not replayable; refusing destructive teardown" >&2
+    exit 1
+  }
+fi
+
 # A Herdr close may reposition shared workspace order, so the whole
 # destructive sequence below (worktree return, pane close, record removal)
 # runs under the named-session presentation lock, acquired BEFORE anything is
@@ -3660,10 +3686,6 @@ BACKLOG_TRANSITION_FLAGS=()
 [ "$BACKLOG_TRANSITION" = close ] || BACKLOG_TRANSITION_FLAGS=(--retain)
 BACKLOG_SKIP_REASON=
 if [ "$TEARDOWN_BACKLOG_APPLIES" = 1 ]; then
-  backlog_done_args || {
-    echo "error: the pending backlog $BACKLOG_TRANSITION for $ID is not replayable; refusing destructive teardown" >&2
-    exit 1
-  }
 # Roll the accepted legacy incarnation's stamp back to the record's exact
 # pre-stamp bytes. Uses perl - already in the teardown lifecycle's curated PATH
 # (truncate is not, and is absent on stock macOS) - and verifies the restored
