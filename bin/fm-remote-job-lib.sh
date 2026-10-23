@@ -77,7 +77,11 @@
 # system tail. No shell startup files are evaluated. Each discovered set is
 # appended in the shell's own sorted pathname-expansion order, so which install
 # of a multi-version tool wins is fixed by this composition rather than by the
-# order the filesystem happens to return.
+# order the filesystem happens to return. Process identity checks and the
+# worker's readiness heartbeat resolve ps and sleep on the same composed PATH,
+# never on the checkout bin or the ambient PATH, so a host whose system tools
+# live only in a Nix profile (NixOS has no /bin/ps or /usr/bin/ps) still
+# verifies ownership.
 #
 # On macOS the worker is Firstmate's Aqua LaunchAgent
 # dev.firstmate.remote-job at ~/Library/LaunchAgents/dev.firstmate.remote-job.plist
@@ -968,13 +972,18 @@ fm_remote_job_worker_ready_path() { printf '%s\n' "$FM_REMOTE_JOB_STATE/worker.r
 fm_remote_job_worker_identity_path() { printf '%s\n' "$FM_REMOTE_JOB_STATE/worker.identity"; }
 fm_remote_job_worker_lock_path() { printf '%s\n' "$FM_REMOTE_JOB_STATE/worker.lock"; }
 
+fm_remote_job_ps_bin() { # resolves only outside the checkout bin
+  [ -n "$FM_REMOTE_JOB_OPERATOR_PATH" ] || fm_remote_job_compose_operator_path "${HOME:-}" >/dev/null
+  fm_remote_job_operator_tool ps
+}
+
 # Pin LC_ALL=C so lstart's date format is locale-invariant: a lock or claim
 # owner recorded under one locale (de_DE renders "Fr. 16 Okt. ...") must still
 # verify under another, or the checker declares the live owner dead and a
 # second worker splits the queue.
 fm_remote_job_process_start() {
   local pid=$1 ps_bin value
-  if [ -x /bin/ps ]; then ps_bin=/bin/ps; elif [ -x /usr/bin/ps ]; then ps_bin=/usr/bin/ps; else return 1; fi
+  ps_bin=$(fm_remote_job_ps_bin) || return 1
   value=$(LC_ALL=C "$ps_bin" -p "$pid" -o lstart= 2>/dev/null) || return 1
   [ -n "$value" ] || return 1
   case "$value" in *$'\n'*|*$'\r'*) return 1 ;; esac
@@ -983,7 +992,7 @@ fm_remote_job_process_start() {
 
 fm_remote_job_process_command() {
   local pid=$1 ps_bin value
-  if [ -x /bin/ps ]; then ps_bin=/bin/ps; elif [ -x /usr/bin/ps ]; then ps_bin=/usr/bin/ps; else return 1; fi
+  ps_bin=$(fm_remote_job_ps_bin) || return 1
   value=$("$ps_bin" -p "$pid" -o command= 2>/dev/null) || return 1
   [ -n "$value" ] || return 1
   case "$value" in *$'\n'*|*$'\r'*) return 1 ;; esac
@@ -992,7 +1001,7 @@ fm_remote_job_process_command() {
 
 fm_remote_job_process_pgid() { # <pid>
   local pid=$1 ps_bin value
-  if [ -x /bin/ps ]; then ps_bin=/bin/ps; elif [ -x /usr/bin/ps ]; then ps_bin=/usr/bin/ps; else return 1; fi
+  ps_bin=$(fm_remote_job_ps_bin) || return 1
   value=$("$ps_bin" -p "$pid" -o pgid= 2>/dev/null) || return 1
   value=$(printf '%s' "$value" | tr -d '[:space:]')
   case "$value" in ''|*[!0-9]*) return 1 ;; esac
@@ -1115,7 +1124,7 @@ fm_remote_job_worker_owned_alive() {
   [ ! -e "$lock/pid" ] && [ ! -L "$lock/pid" ] &&
     [ ! -e "$lock/start" ] && [ ! -L "$lock/start" ] &&
     [ ! -e "$lock/command" ] && [ ! -L "$lock/command" ] || return 1
-  if [ -x /bin/ps ]; then ps_bin=/bin/ps; elif [ -x /usr/bin/ps ]; then ps_bin=/usr/bin/ps; else return 1; fi
+  ps_bin=$(fm_remote_job_ps_bin) || return 1
   command=$("$ps_bin" -p "$pid" -o command= 2>/dev/null) || return 1
   case "$command" in *"$root/bin/fm-remote-job-worker.sh"*) FM_REMOTE_JOB_OWNER_PID=$pid; return 0 ;; esac
   return 1

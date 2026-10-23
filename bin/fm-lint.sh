@@ -33,13 +33,18 @@
 #     `gh`). That local pass drops --external-sources and excludes SC1091,
 #     SC2034, SC2153, and SC2329. A branch with zero matching changed files
 #     skips ShellCheck and prints a "no changed lint targets" note, then
-#     still runs the backend-purity check and validates workflows.
+#     still runs the backend-purity and interpreter-line checks and
+#     validates workflows.
 # Explicit paths always bypass this file-set selection and lint exactly the
 # given paths, matching the same config, without the workflow YAML check.
 # Explicit core bin/ and bin/backends/ scripts still receive the
 # backend-purity check. The backend-purity check rejects direct Beads CLI
 # invocations in the core bin/ and bin/backends/ scripts so every configured
 # backlog backend follows the same tasks-axi lifecycle path.
+# Without explicit paths, the interpreter-line check also requires every
+# executable bin/*.sh and bin/backends/*.sh script to start with
+# #!/usr/bin/env bash, so hosts without /bin/bash (such as NixOS) can still
+# exec it.
 #
 # Lint defaults to two concurrency-limited workers over two stable logical
 # shards, and each worker runs ONE canonical root per ShellCheck process, so a
@@ -52,8 +57,8 @@
 # exposes their actual roots.
 # Partition mode starts with full source-aware analysis, never changed-only
 # or --fast, and does not accept explicit paths. Each partition also runs
-# workflow lint and backend-purity checks, keeping either invocation
-# independently useful.
+# workflow lint, backend-purity, and interpreter-line checks, keeping either
+# invocation independently useful.
 #
 # With FM_LINT_REQUIRE_BOUNDS=1, which CI sets, every per-root ShellCheck
 # process runs under an enforced envelope: a wall deadline
@@ -709,6 +714,22 @@ fm_lint_run_backend_purity() {
   }
 }
 
+# Executable entry scripts resolve bash through PATH; a hardcoded /bin/bash
+# cannot exec on hosts that do not provide it.
+fm_lint_run_portable_interpreter() {
+  local path line rc=0
+  [ "$EXPLICIT_PATHS" -eq 0 ] || return 0
+  for path in bin/*.sh bin/backends/*.sh; do
+    [ -f "$path" ] && [ -x "$path" ] || continue
+    line=
+    IFS= read -r line < "$path" || true
+    [ "$line" = '#!/usr/bin/env bash' ] && continue
+    printf '%s:1: executable script must start with #!/usr/bin/env bash\n' "$path" >&2
+    rc=1
+  done
+  return "$rc"
+}
+
 JOBS=${FM_LINT_JOBS:-2}
 TELEMETRY=${FM_LINT_TELEMETRY:-}
 FAST=0
@@ -938,6 +959,7 @@ if [ "$CHANGED_MODE" -eq 1 ] && [ "$ROOT_COUNT" -eq 0 ]; then
   printf 'fm-lint.sh: no changed lint targets\n'
   overall_rc=0
   fm_lint_run_backend_purity || overall_rc=$?
+  fm_lint_run_portable_interpreter || overall_rc=$?
   fm_lint_run_workflows || overall_rc=$?
   exit "$overall_rc"
 fi
@@ -1268,6 +1290,7 @@ fi
 
 purity_rc=0
 fm_lint_run_backend_purity || purity_rc=$?
+fm_lint_run_portable_interpreter || purity_rc=$?
 if [ "$overall_rc" -eq 0 ] && [ "$purity_rc" -ne 0 ]; then
   overall_rc=$purity_rc
 fi

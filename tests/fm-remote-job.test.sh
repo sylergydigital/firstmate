@@ -252,6 +252,93 @@ if [ -n "$IDENTITY_LOCALE" ]; then
   pass "lock and claim owner identity stays locale-invariant ($IDENTITY_LOCALE)"
 fi
 
+# A NixOS host ships ps and sleep only in its system profile: /bin holds just
+# sh and /usr/bin just env. Process identity, lock ownership, and the readiness
+# heartbeat must find both on the composed operator PATH, never on an ambient
+# PATH entry, or the worker can never acquire its lock and never reports ready.
+nixos_tools_case() (
+  local host="$TMP_ROOT/nixos-host" account="$TMP_ROOT/nixos-account" state="$TMP_ROOT/nixos-jobs"
+  local untrusted="$TMP_ROOT/nixos-untrusted-bin" profile real_ps real_sleep nixos_path ambient
+  local start command pgid pid='' i status
+  profile="$host/run/current-system/sw/bin"
+  real_ps=$(command -v ps)
+  real_sleep=$(command -v sleep)
+  mkdir -p "$profile" "$host/usr/bin" "$host/bin" "$account/.nix-profile" "$untrusted"
+  ln -s "$(command -v env)" "$host/usr/bin/env"
+  ln -s "$(command -v sh)" "$host/bin/sh"
+  ln -s "$profile" "$account/.nix-profile/bin"
+  write_recorder() { # <path> <log> <real-executable>
+    cat > "$1" <<SH
+#!/bin/sh
+printf '%s\n' "\$*" >> "$2"
+exec "$3" "\$@"
+SH
+    chmod +x "$1"
+  }
+  write_recorder "$profile/ps" "$host/ps.log" "$real_ps"
+  write_recorder "$profile/sleep" "$host/sleep.log" "$real_sleep"
+  write_recorder "$untrusted/ps" "$untrusted/ps.log" "$real_ps"
+  nixos_path="$profile:$host/usr/bin:$host/bin"
+  ambient="$untrusted:/usr/bin:/bin:/usr/sbin:/sbin"
+  trap '[ -z "$pid" ] || { kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }' EXIT
+
+  start=$(PATH="$ambient" FM_REMOTE_JOB_OPERATOR_PATH="$nixos_path" fm_remote_job_process_start "$$") \
+    || fail "process identity found no ps on a host whose ps lives only in the system profile"
+  [ "$start" = "$(LC_ALL=C "$real_ps" -p "$$" -o lstart=)" ] || fail "the system-profile ps reported another start identity"
+  command=$(PATH="$ambient" FM_REMOTE_JOB_OPERATOR_PATH="$nixos_path" fm_remote_job_process_command "$$") \
+    || fail "process command lookup found no ps in the system profile"
+  [ -n "$command" ] || fail "the system-profile ps reported an empty command"
+  pgid=$(PATH="$ambient" FM_REMOTE_JOB_OPERATOR_PATH="$nixos_path" fm_remote_job_process_pgid "$$") \
+    || fail "process group lookup found no ps in the system profile"
+  [ "$pgid" = "$("$real_ps" -p "$$" -o pgid= | tr -d '[:space:]')" ] || fail "the system-profile ps reported another process group"
+  grep -q 'lstart=' "$host/ps.log" || fail "process start identity did not run the system-profile ps"
+  grep -q 'command=' "$host/ps.log" || fail "process command lookup did not run the system-profile ps"
+  grep -q 'pgid=' "$host/ps.log" || fail "process group lookup did not run the system-profile ps"
+  ! PATH="$ambient" FM_REMOTE_JOB_OPERATOR_PATH="$host/usr/bin:$host/bin" fm_remote_job_process_start "$$" >/dev/null \
+    || fail "process identity resolved ps outside the trusted operator PATH"
+  : > "$host/ps.log"
+  HOME="$account" FM_REMOTE_JOB_OPERATOR_PATH='' fm_remote_job_process_start "$$" >/dev/null \
+    || fail "a caller without a composed operator PATH found no ps in its account's Nix profile"
+  grep -q 'lstart=' "$host/ps.log" || fail "a caller without a composed operator PATH bypassed the operator PATH"
+  assert_absent "$untrusted/ps.log" "process identity ran a ps from an untrusted PATH entry"
+
+  : > "$host/ps.log"
+  HOME="$account" PATH="$ambient" FM_ROOT_OVERRIDE="$REMOTE_ROOT" \
+    FM_REMOTE_JOB_STATE_ROOT="$state" FM_REMOTE_JOB_PLATFORM_OVERRIDE=Linux \
+    "$REMOTE_ROOT/bin/fm-remote-job-worker.sh" --serve > "$TMP_ROOT/nixos-worker.log" 2>&1 &
+  pid=$!
+  for ((i = 0; i < 200; i++)); do
+    [ -f "$state/worker.ready" ] && grep -q 'state=' "$host/ps.log" && grep -qx 1 "$host/sleep.log" 2>/dev/null && break
+    /bin/sleep 0.05
+  done
+  assert_present "$state/worker.ready" "the worker never reported ready with ps only in the system profile"$'\n'"$(cat "$TMP_ROOT/nixos-worker.log")"
+  grep -q 'lstart=' "$host/ps.log" || fail "the worker's lock ownership did not run the operator-PATH ps"
+  grep -q 'state=' "$host/ps.log" || fail "the readiness heartbeat did not run the operator-PATH ps"
+  grep -qx 1 "$host/sleep.log" 2>/dev/null || fail "the readiness heartbeat did not run the operator-PATH sleep"
+  HOME="$account" FM_REMOTE_JOB_STATE_ROOT="$state" fm_remote_job_probe "$account" \
+    || fail "the readiness probe rejected a worker whose ps lives only in the system profile"
+  assert_absent "$untrusted/ps.log" "the worker ran a ps from an untrusted PATH entry"
+  pass "ownership and readiness resolve ps and sleep on the operator PATH of a host without /bin/ps or /usr/bin/ps"
+
+  # A profile switch plus garbage collection can delete the heartbeat's
+  # resolved sleep under a running worker. The heartbeat must stop rather than
+  # spin, so the serving loop exits for a supervised restart that resolves again.
+  rm -f "$profile/sleep"
+  for ((i = 0; i < 200; i++)); do
+    kill -0 "$pid" 2>/dev/null || break
+    /bin/sleep 0.05
+  done
+  ! kill -0 "$pid" 2>/dev/null || fail "the worker kept serving after its heartbeat sleep disappeared"
+  status=0
+  wait "$pid" 2>/dev/null || status=$?
+  pid=''
+  [ "$status" -eq 1 ] || fail "the worker exited $status rather than 1 after its heartbeat sleep disappeared"
+  grep -q 'readiness heartbeat process stopped' "$TMP_ROOT/nixos-worker.log" \
+    || fail "the worker did not report its stopped heartbeat"$'\n'"$(cat "$TMP_ROOT/nixos-worker.log")"
+  pass "a vanished heartbeat sleep stops the worker for a supervised restart instead of spinning"
+)
+nixos_tools_case || exit 1
+
 LOCAL_BIN_PARENT="$ACCOUNT_HOME/.local"
 LOCAL_BIN_TARGET="$TMP_ROOT/local-bin-target"
 mkdir -p "$LOCAL_BIN_PARENT" "$LOCAL_BIN_TARGET"
@@ -1421,8 +1508,9 @@ SCAN_OTHER_ID=$(scan_stage "$SCAN_HOME_B" fm-delay-job.sh 1 "$TMP_ROOT/other-ran
   || fail "the scan fixture's queued jobs did not stage"
 : > "$SCAN_EXEC_LOG"
 : > "$SCAN_CHILD_LOG"
-# Direct exec, not "$BASH": the production shebang is /bin/bash, so this lane
-# runs on the stock macOS bash the same way the deployed worker does.
+# Direct exec, not "$BASH": the production shebang resolves bash through PATH,
+# so with this lane's system PATH it runs on the stock macOS bash the same way
+# the deployed worker does.
 HOME="$SCAN_ACCOUNT" PATH="$QUIET_SHIM:/usr/bin:/bin:/usr/sbin:/sbin" \
   FM_TEST_EXEC_LOG="$SCAN_EXEC_LOG" FM_ROOT_OVERRIDE="$REMOTE_ROOT" \
   FM_REMOTE_JOB_STATE_ROOT="$SCAN_STATE" FM_REMOTE_JOB_PLATFORM_OVERRIDE=Linux \
