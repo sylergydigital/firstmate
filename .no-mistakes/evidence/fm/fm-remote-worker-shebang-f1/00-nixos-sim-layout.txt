@@ -1,0 +1,14 @@
+debconf: delaying package configuration, since apt-utils is not installed
+useradd: Warning: missing or non-executable shell '/run/current-system/sw/bin/bash'
+--- NixOS-shaped layout ---
+/bin:     sh 
+/usr/bin: env 
+absent  /bin/bash
+absent  /bin/ps
+absent  /usr/bin/ps
+absent  /bin/sleep
+absent  /usr/bin/bash
+absent  /sbin
+absent  /usr/sbin
+/run/current-system -> /nix/store/2ccccccccccccccccccccccccccccccc-nixos-system-pve-devbox-new-hire
+/run/current-system/sw/bin/ps -> /nix/store/0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-ubuntu-userland/bin/ps

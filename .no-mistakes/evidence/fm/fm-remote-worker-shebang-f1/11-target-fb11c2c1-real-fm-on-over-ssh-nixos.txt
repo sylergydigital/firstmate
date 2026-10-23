@@ -1,0 +1,44 @@
+primary FM_HOME data/secondmates.md: - house - house machine second mate (host: pve-devbox-new-hire; root: /home/developer/firstmate-code; home: /home/developer/fm-home; scope: weddingcraft and Ship's Bell; projects: weddingcraft; added 2026-10-23)
+remote: pve-devbox-new-hire /bin=[sh] /usr/bin=[env] PATH=/run/wrappers/bin:/home/developer/.local/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+#!/usr/bin/env bash
+
+$ bin/fm-on.sh house fm-remote-doctor.sh --fix
+mode=fix
+path=/home/developer/firstmate-code/bin:/home/developer/.local/bin:/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin
+entrypoint=yes
+platform=linux
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+required git=/run/current-system/sw/bin/git
+required jq=/run/current-system/sw/bin/jq
+required herdr=MISSING
+required tasks-axi=MISSING
+required treehouse=MISSING
+required harness=MISSING
+check herdr=human: the herdr CLI does not resolve on the remote runtime PATH
+check gui-session=skip: no Aqua login session applies on linux
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+check herdr-server=human: herdr server status cannot be read without both herdr and jq on the runtime PATH
+check entrypoint-link=ok: /home/developer/.local/bin/fm-remote-entrypoint.sh
+error: required tools do not resolve on the remote runtime PATH: herdr tasks-axi treehouse harness
+error: this host is not ready for a remote second mate; unresolved: herdr herdr-server
+[exit=1]
+
+$ bin/fm-on.sh house fm-remote-doctor.sh
+mode=check
+path=/home/developer/firstmate-code/bin:/home/developer/.local/bin:/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin
+entrypoint=yes
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+[exit=1]
+$ bin/fm-on.sh house fm-forge-detect.sh /home/developer/firstmate-code
+forge=none
+[exit=0]
+
+$ ssh pve-devbox-new-hire 'ps -u developer -o pid,ppid,command | grep fm-remote-job-worker; cat ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log'
+    174       1 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+    230     174 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+    324     230 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+--- worker log (0 lines):

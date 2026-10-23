@@ -1,0 +1,34 @@
+~/.nix-profile -> /nix/store/4ddddddddddddddddddddddddddddddd-user-environment; bin -> /nix/store/5eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-coreutils-9.5/bin
+commit=fb11c2c1   command -v sleep -> /home/developer/.nix-profile/bin/sleep   command -v ps -> /run/current-system/sw/bin/ps
+$ FM_HOME=~/fm-home ~/firstmate-code/bin/fm-remote-doctor.sh --fix
+mode=fix
+entrypoint=no
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+$ ps -u developer -o pid,ppid,pcpu,command | grep -E 'fm-remote-job-worker|sleep 1$'
+    120       1  0.0 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+    176     120  0.6 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+    273     176  0.0 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   1157     273  0.0 /nix/store/5eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-coreutils-9.5/bin/sleep 1
+   1158     176  0.0 sleep 1
+worker.ready age: 1s   log lines: 0
+
+# home-manager switch: ~/.nix-profile -> /nix/store/6fffffffffffffffffffffffffffffff-user-environment
+# nix-collect-garbage: deleted /nix/store/4ddddddddddddddddddddddddddddddd-user-environment and /nix/store/5eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-coreutils-9.5
+--- after 8s: worker log grew by 2 lines
+$ ps -u developer -o pid,ppid,pcpu,command | grep -E 'fm-remote-job-worker|sleep 1$'
+    120       1  0.0 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+   1331     120  0.1 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   1428    1331  0.1 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   1824    1428  0.0 /nix/store/7ggggggggggggggggggggggggggggggg-coreutils-9.5/bin/sleep 1
+   1825    1331  0.0 sleep 1
+worker.ready age: 0s   log lines: 2
+$ sort ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log | uniq -c | sort -rn | head -5
+      1 remote-job-worker: readiness heartbeat process stopped
+      1 /home/developer/firstmate-code/bin/fm-remote-job-worker.sh: line 132: /nix/store/5eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-coreutils-9.5/bin/sleep: No such file or directory
+$ ~/firstmate-code/bin/fm-remote-doctor.sh   (check mode)
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe

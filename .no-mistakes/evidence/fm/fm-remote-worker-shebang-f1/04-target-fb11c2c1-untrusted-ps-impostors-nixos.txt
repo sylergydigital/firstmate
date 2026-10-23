@@ -1,0 +1,90 @@
+commit=fb11c2c1  ambient PATH=/home/developer/untrusted-bin:/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/run/current-system/sw/bin
+$ command -v ps   ->  /home/developer/untrusted-bin/ps   (planted impostor wins the ambient lookup)
+$ cat /home/developer/untrusted-bin/ps
+#!/bin/sh
+printf "%s\n" "$*" >> /home/developer/untrusted-ps.log
+exec /run/current-system/sw/bin/ps "$@"
+
+$ fm-on.sh pve-devbox-new-hire fm-remote-doctor.sh --fix   (child PATH puts /home/developer/firstmate-code/bin, holding a planted ps, first)
+mode=fix
+path=/home/developer/firstmate-code/bin:/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin
+entrypoint=yes
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+
+$ ~/firstmate-code/bin/fm-remote-doctor.sh --fix   (direct, impostor dir first on ambient PATH)
+mode=fix
+path=/home/developer/untrusted-bin:/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/run/current-system/sw/bin
+entrypoint=no
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+
+$ fm-on.sh pve-devbox-new-hire fm-forge-detect.sh /home/developer/firstmate-code
+forge=none
+[exit=0]
+
+$ ps -u developer -o pid,ppid,command | grep -E 'fm-remote-job-worker|sleep 1$'   (the heartbeat's sleep child shows its resolved path)
+    166       1 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+    222     166 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+    316     222 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   2794     222 sleep 1
+   2844     316 /run/current-system/sw/bin/sleep 1
+
+--- untrusted-ps.log: 3 invocations; ownership/identity/heartbeat queries (lstart=|state=|pgid=|-p N -o command=):
+    none
+    all distinct invocation shapes:
+          3 -o ppid= -p N
+--- checkout-ps.log: 0 invocations; ownership/identity/heartbeat queries (lstart=|state=|pgid=|-p N -o command=):
+    none
+    all distinct invocation shapes:
+--- untrusted-sleep.log: heartbeat-shaped 'sleep 1' calls from the heartbeat process: see ps listing above for the heartbeat's binary
+    distinct invocation shapes:
+          8 0.25
+$ kill -TERM -- -166   (stop the running worker tree)
+(no worker process)
+
+$ FM_HOME=~/fm-home ~/firstmate-code/bin/fm-remote-doctor.sh --fix   (ambient PATH=/home/developer/untrusted-bin:/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/run/current-system/sw/bin)
+mode=fix
+path=/home/developer/untrusted-bin:/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/run/current-system/sw/bin
+entrypoint=no
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+
+$ tr '\0' '\n' < /proc/<serving worker>/environ | grep ^PATH=
+PATH=/home/developer/untrusted-bin:/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/run/current-system/sw/bin
+
+$ ps -u developer -o pid,ppid,command | grep -E 'fm-remote-job-worker|sleep 1$'
+   4131       1 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+   4187    4131 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   4281    4187 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+   5244    4281 /run/current-system/sw/bin/sleep 1
+   5245    4187 /run/current-system/sw/bin/sleep 1
+
+--- untrusted-ps.log: 0 invocations; ownership/identity/heartbeat queries (lstart=|state=|pgid=|-p N -o command=):
+    none
+    all distinct invocation shapes:
+--- checkout-ps.log: 0 invocations; ownership/identity/heartbeat queries (lstart=|state=|pgid=|-p N -o command=):
+    none
+    all distinct invocation shapes:
+--- untrusted-sleep.log distinct invocation shapes (pre-existing bare 'sleep' calls in the worker loop resolve through ambient PATH; the heartbeat's own sleep is the absolute path above):
+          2 0.01
+         11 0.05
+          1 0.1
+          5 0.25
+          5 1
+$ cat ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log
+Terminated
+Terminated
+serving worker pid=4187   readiness-heartbeat subshell pid=4281
+$ ps -o pid,ppid,command --ppid 4281   (the heartbeat's own sleep child)
+    PID    PPID COMMAND
+   6551    4281 /run/current-system/sw/bin/sleep 1
+
+--- ambient impostor sleep calls over 6s, by caller pid:
+      6     caller=4187 args=1
+--- impostor sleep calls made by the heartbeat subshell (4281): 0

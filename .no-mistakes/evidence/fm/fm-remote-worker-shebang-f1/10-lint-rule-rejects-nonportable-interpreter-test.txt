@@ -1,0 +1,3 @@
+$ (source tests/fm-lint.test.sh up to its test list; run test_rejects_nonportable_interpreter_line)
+ok - fm-lint.sh requires #!/usr/bin/env bash on executable bin scripts
+[exit=0]

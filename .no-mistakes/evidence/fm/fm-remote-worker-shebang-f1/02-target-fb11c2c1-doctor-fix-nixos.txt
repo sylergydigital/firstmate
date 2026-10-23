@@ -1,0 +1,78 @@
+host: pve-devbox-new-hire user=developer commit=fb11c2c1
+$ ls /bin /usr/bin
+/bin:
+sh
+
+/usr/bin:
+env
+$ command -v bash ps sleep env
+/run/current-system/sw/bin/bash
+/run/current-system/sw/bin/ps
+/run/current-system/sw/bin/sleep
+/run/current-system/sw/bin/env
+$ head -1 ~/firstmate-code/bin/fm-remote-job-worker.sh
+#!/usr/bin/env bash
+
+$ ~/firstmate-code/bin/fm-remote-doctor.sh --fix
+mode=fix
+path=/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+entrypoint=no
+note: not launched through the fixed remote entrypoint; the reported PATH is this caller environment.
+platform=linux
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+required git=/run/current-system/sw/bin/git
+required jq=/run/current-system/sw/bin/jq
+required herdr=MISSING
+required tasks-axi=MISSING
+required treehouse=MISSING
+required harness=MISSING
+optional tmux=absent
+optional no-mistakes=absent
+optional gh=absent
+check herdr=human: the herdr CLI does not resolve on the remote runtime PATH
+check gui-session=skip: no Aqua login session applies on linux
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker could not accept the required-tool probe
+check launchagent=skip: launch agents apply only on darwin
+check launchagent-scope=skip: launch agents apply only on darwin
+check launchagent-loaded=skip: launch agents apply only on darwin
+check herdr-server=human: herdr server status cannot be read without both herdr and jq on the runtime PATH
+check entrypoint-link=skip: this run did not come through the fixed remote entrypoint
+action: herdr: install herdr from https://herdr.dev on that account, or add a ~/.local/bin wrapper for it; a remote second mate always runs on the Herdr backend
+action: remote-job-probe: rerun this command with --fix to restart the worker
+action: herdr-server: install the missing tool reported above, then rerun this command
+error: required tools do not resolve on the remote runtime PATH: herdr tasks-axi treehouse harness
+fix: install each one where it resolves on the path reported above, or put a wrapper script for it in /home/developer/.local/bin, which is always on that PATH.
+fix: tools in an unselected nvm version or outside the discovered asdf or mise paths need an absolute wrapper; see docs/remote-secondmates.md for the wrapper recipe.
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-probe herdr-server
+[doctor exit=1 after 0s]
+
+$ grep -E 'remote-job' of a second, check-mode doctor run
+mode=check
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker could not accept the required-tool probe
+action: remote-job-probe: rerun this command with --fix to restart the worker
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-probe herdr-server
+
+$ tail -n 8 ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log
+[log lines: 0]
+
+$ ps -u developer -o pid,ppid,pgid,command | grep fm-remote-job-worker
+    105       1     105 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+    161     105     105 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+    255     161     105 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+
+$ ls -la ~/.firstmate/remote-job/
+total 40
+drwx------ 6 developer developer 4096 Oct 23 12:29 .
+drwx------ 3 developer developer 4096 Oct 23 12:29 ..
+drwx------ 2 developer developer 4096 Oct 23 12:29 .seq-claims
+-rw------- 1 developer developer   11 Oct 23 12:29 .seq-claims-reaped
+drwx------ 2 developer developer 4096 Oct 23 12:29 jobs
+drwx------ 2 developer developer 4096 Oct 23 12:29 logs
+-rw------- 1 developer developer  123 Oct 23 12:29 worker.identity
+drwx------ 2 developer developer 4096 Oct 23 12:29 worker.lock
+-rw------- 1 developer developer    4 Oct 23 12:29 worker.pid
+-rw------- 1 developer developer    4 Oct 23 12:29 worker.ready

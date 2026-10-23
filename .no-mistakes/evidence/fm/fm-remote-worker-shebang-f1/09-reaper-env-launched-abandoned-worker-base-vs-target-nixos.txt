@@ -1,0 +1,35 @@
+/run/current-system/sw/bin/bash: line 1: rm: command not found
+account live-root worker supervisor: pid 106 (bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh)
+
+=== base reaper (1d803477) ===
+$ ps -o pid,ppid,pgid,command -p "5003,5006,5008"   (env-launched stand-in, process group 5003; code root /home/developer/reap-case/remote-root now pruned)
+    PID    PPID    PGID COMMAND
+   5003    4988    5003 bash /home/developer/reap-case/remote-root/bin/fm-remote-job-worker.sh
+   5006    5003    5003 bash /home/developer/reap-case/remote-root/bin/fm-remote-job-worker.sh --serve
+   5008    5006    5003 sleep 0.2
+$ ~/base-code/bin/fm-remote-job-reap-orphans.sh
+[exit=0]
+RESULT: the env-launched abandoned worker 5003 is still running
+/sim/reap-env-standin.sh: line 41:  5003 Killed                  "$R/bin/fm-remote-job-worker.sh" > /dev/null 2>&1
+
+=== target reaper (fb11c2c1) ===
+$ ps -o pid,ppid,pgid,command -p "5098,5101,5102"   (env-launched stand-in, process group 5098; code root /home/developer/reap-case/remote-root now pruned)
+    PID    PPID    PGID COMMAND
+   5098    4988    5098 bash /home/developer/reap-case/remote-root/bin/fm-remote-job-worker.sh
+   5101    5098    5098 bash /home/developer/reap-case/remote-root/bin/fm-remote-job-worker.sh --serve
+   5102    5101    5098 sleep 0.2
+$ ~/firstmate-code/bin/fm-remote-job-reap-orphans.sh --dry-run
+would reap abandoned remote job worker 5098 (pruned code root /home/developer/reap-case/remote-root)
+would reap abandoned remote job worker 5101 (pruned code root /home/developer/reap-case/remote-root)
+[exit=0]
+$ ~/firstmate-code/bin/fm-remote-job-reap-orphans.sh
+reaped abandoned remote job worker 5098 (pruned code root /home/developer/reap-case/remote-root)
+[exit=0]
+RESULT: the env-launched abandoned worker tree 5098 is gone: 0 processes left in its process group
+$ ~/firstmate-code/bin/fm-remote-job-reap-orphans.sh   (repeat)
+[exit=0]
+
+$ pgrep -fa '^bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh'   (account live-root worker after both sweeps)
+106 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+162 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+256 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve

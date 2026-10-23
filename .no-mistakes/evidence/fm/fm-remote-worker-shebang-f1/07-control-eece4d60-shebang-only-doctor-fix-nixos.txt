@@ -1,0 +1,83 @@
+/run/current-system/sw/bin/bash: line 1: mkdir: command not found
+host: pve-devbox-new-hire user=developer commit=eece4d60
+$ ls /bin /usr/bin
+/bin:
+sh
+
+/usr/bin:
+env
+$ command -v bash ps sleep env
+/run/current-system/sw/bin/bash
+/run/current-system/sw/bin/ps
+/run/current-system/sw/bin/sleep
+/run/current-system/sw/bin/env
+$ head -1 ~/firstmate-code/bin/fm-remote-job-worker.sh
+#!/usr/bin/env bash
+
+$ ~/firstmate-code/bin/fm-remote-doctor.sh --fix
+mode=fix
+path=/run/wrappers/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+entrypoint=no
+note: not launched through the fixed remote entrypoint; the reported PATH is this caller environment.
+platform=linux
+fix remote-job-worker=failed: remote job worker did not report ready after startup
+required git=/run/current-system/sw/bin/git
+required jq=/run/current-system/sw/bin/jq
+required herdr=MISSING
+required tasks-axi=MISSING
+required treehouse=MISSING
+required harness=MISSING
+optional tmux=absent
+optional no-mistakes=absent
+optional gh=absent
+check herdr=human: the herdr CLI does not resolve on the remote runtime PATH
+check gui-session=skip: no Aqua login session applies on linux
+check remote-job-worker=fixable: the Linux remote job worker is not running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker has not reported a fresh probe
+check launchagent=skip: launch agents apply only on darwin
+check launchagent-scope=skip: launch agents apply only on darwin
+check launchagent-loaded=skip: launch agents apply only on darwin
+check herdr-server=human: herdr server status cannot be read without both herdr and jq on the runtime PATH
+check entrypoint-link=skip: this run did not come through the fixed remote entrypoint
+action: herdr: install herdr from https://herdr.dev on that account, or add a ~/.local/bin wrapper for it; a remote second mate always runs on the Herdr backend
+action: remote-job-worker: rerun this command with --fix to start it
+action: remote-job-probe: rerun this command with --fix to restart the worker, then rerun through fm-on.sh
+action: herdr-server: install the missing tool reported above, then rerun this command
+error: required tools do not resolve on the remote runtime PATH: herdr tasks-axi treehouse harness
+fix: install each one where it resolves on the path reported above, or put a wrapper script for it in /home/developer/.local/bin, which is always on that PATH.
+fix: tools in an unselected nvm version or outside the discovered asdf or mise paths need an absolute wrapper; see docs/remote-secondmates.md for the wrapper recipe.
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-worker remote-job-probe herdr-server
+[doctor exit=1 after 43s]
+
+$ grep -E 'remote-job' of a second, check-mode doctor run
+mode=check
+check remote-job-worker=fixable: the Linux remote job worker is not running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker has not reported a fresh probe
+action: remote-job-worker: rerun this command with --fix to start it
+action: remote-job-probe: rerun this command with --fix to restart the worker, then rerun through fm-on.sh
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-worker remote-job-probe herdr-server
+
+$ tail -n 8 ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+remote-job-worker: cannot acquire or safely reclaim worker ownership
+[log lines: 18]
+
+$ ps -u developer -o pid,ppid,pgid,command | grep fm-remote-job-worker
+    106       1     106 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+   4744       1    4744 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+
+$ ls -la ~/.firstmate/remote-job/
+total 20
+drwx------ 5 developer developer 4096 Oct 23 12:33 .
+drwx------ 3 developer developer 4096 Oct 23 12:33 ..
+drwx------ 2 developer developer 4096 Oct 23 12:33 .seq-claims
+drwx------ 2 developer developer 4096 Oct 23 12:33 jobs
+drwx------ 2 developer developer 4096 Oct 23 12:33 logs

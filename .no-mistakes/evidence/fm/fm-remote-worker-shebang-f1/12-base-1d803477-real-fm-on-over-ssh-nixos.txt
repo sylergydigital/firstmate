@@ -1,0 +1,51 @@
+primary FM_HOME data/secondmates.md: - house - house machine second mate (host: pve-devbox-new-hire; root: /home/developer/firstmate-code; home: /home/developer/fm-home; scope: weddingcraft and Ship's Bell; projects: weddingcraft; added 2026-10-23)
+remote: pve-devbox-new-hire /bin=[sh] /usr/bin=[env] PATH=/run/wrappers/bin:/home/developer/.local/bin:/home/developer/.nix-profile/bin:/etc/profiles/per-user/developer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+#!/bin/bash
+
+$ bin/fm-on.sh house fm-remote-doctor.sh --fix
+mode=fix
+path=/home/developer/firstmate-code/bin:/home/developer/.local/bin:/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin
+entrypoint=yes
+platform=linux
+fix remote-job-worker=failed: remote job worker did not report ready after startup
+required git=/run/current-system/sw/bin/git
+required jq=/run/current-system/sw/bin/jq
+required herdr=MISSING
+required tasks-axi=MISSING
+required treehouse=MISSING
+required harness=MISSING
+check herdr=human: the herdr CLI does not resolve on the remote runtime PATH
+check gui-session=skip: no Aqua login session applies on linux
+check remote-job-worker=fixable: the Linux remote job worker is not running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker has not reported a fresh probe
+check herdr-server=human: herdr server status cannot be read without both herdr and jq on the runtime PATH
+check entrypoint-link=ok: /home/developer/.local/bin/fm-remote-entrypoint.sh
+action: remote-job-worker: rerun this command with --fix to start it
+action: remote-job-probe: rerun this command with --fix to restart the worker, then rerun through fm-on.sh
+error: required tools do not resolve on the remote runtime PATH: herdr tasks-axi treehouse harness
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-worker remote-job-probe herdr-server
+[exit=1]
+
+$ bin/fm-on.sh house fm-remote-doctor.sh
+mode=check
+path=/home/developer/firstmate-code/bin:/home/developer/.local/bin:/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin
+entrypoint=yes
+check remote-job-worker=fixable: the Linux remote job worker is not running
+check remote-job-worker-loaded=skip: Aqua launch agents do not apply on linux
+check remote-job-probe=fixable: the remote job worker has not reported a fresh probe
+action: remote-job-worker: rerun this command with --fix to start it
+action: remote-job-probe: rerun this command with --fix to restart the worker, then rerun through fm-on.sh
+error: this host is not ready for a remote second mate; unresolved: herdr remote-job-worker remote-job-probe herdr-server
+[exit=1]
+$ bin/fm-on.sh house fm-forge-detect.sh /home/developer/firstmate-code
+error: remote job worker did not report ready after startup
+[exit=64]
+
+$ ssh pve-devbox-new-hire 'ps -u developer -o pid,ppid,command | grep fm-remote-job-worker; cat ~/.firstmate/remote-job/logs/dev.firstmate.remote-job.log'
+(no worker process)
+--- worker log (4 lines):
+env: '/home/developer/firstmate-code/bin/fm-remote-job-worker.sh': No such file or directory
+env: '/home/developer/firstmate-code/bin/fm-remote-job-worker.sh': No such file or directory
+env: ‘/home/developer/firstmate-code/bin/fm-remote-job-worker.sh’: No such file or directory
+env: ‘/home/developer/firstmate-code/bin/fm-remote-job-worker.sh’: No such file or directory

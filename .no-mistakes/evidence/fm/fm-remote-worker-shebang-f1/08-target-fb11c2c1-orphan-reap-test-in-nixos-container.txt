@@ -1,0 +1,24 @@
+PID 1: /sbin/docker-init -- /run/current-system/sw/bin/sleep infinity   /bin: sh   /usr/bin: env
+$ FM_HOME=~/fm-home ~/firstmate-code/bin/fm-remote-doctor.sh --fix | grep remote-job-
+fix remote-job-worker=applied: installed or reloaded dev.firstmate.remote-job
+check remote-job-worker=ok: the Linux remote job worker is running
+check remote-job-probe=ok: the remote job worker completed the required-tool probe
+$ pgrep -fa fm-remote-job-worker   (the account live-root worker, before)
+8 /run/current-system/sw/bin/bash -c  set -u ROOT=/home/developer/firstmate-code mkdir "$ROOT"; tar -xf /sim/code-fb11c2c1.tar -C "$ROOT" (cd "$ROOT" && git init -q && git add -A && git -c user.name=sim -c user.email=sim@example.invalid commit -qm snapshot) mkdir -p ~/fm-home echo "PID 1: $(ps -o command= -p 1)   /bin: $(ls /bin)   /usr/bin: $(ls /usr/bin)" echo "\$ FM_HOME=~/fm-home ~/firstmate-code/bin/fm-remote-doctor.sh --fix | grep remote-job-" FM_HOME=~/fm-home "$ROOT/bin/fm-remote-doctor.sh" --fix 2>&1 | grep -E "remote-job-(worker|probe)=" echo "\$ pgrep -fa fm-remote-job-worker   (the account live-root worker, before)"; pgrep -fa fm-remote-job-worker cd "$ROOT" echo "\$ bash tests/fm-remote-job-orphan-reap.test.sh" bash tests/fm-remote-job-orphan-reap.test.sh; echo "[exit=$?]" echo "\$ pgrep -fa fm-remote-job-worker   (the account live-root worker, after the reaper sweeps)"; pgrep -fa fm-remote-job-worker echo "\$ bin/fm-remote-job-reap-orphans.sh --dry-run"; bin/fm-remote-job-reap-orphans.sh --dry-run; echo "[exit=$?]" 
+106 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+162 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+256 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+$ bash tests/fm-remote-job-orphan-reap.test.sh
+ok - the Linux start path puts the whole worker tree in its own process group
+ok - removing the state root and killing the recorded worker pid leaves the tree running, orphaned
+ok - a worker whose code root still exists is never reaped
+ok - a worker stops its whole tree once its code root is pruned
+not ok - the stand-in worker never started its serving child
+[exit=1]
+$ pgrep -fa fm-remote-job-worker   (the account live-root worker, after the reaper sweeps)
+8 /run/current-system/sw/bin/bash -c  set -u ROOT=/home/developer/firstmate-code mkdir "$ROOT"; tar -xf /sim/code-fb11c2c1.tar -C "$ROOT" (cd "$ROOT" && git init -q && git add -A && git -c user.name=sim -c user.email=sim@example.invalid commit -qm snapshot) mkdir -p ~/fm-home echo "PID 1: $(ps -o command= -p 1)   /bin: $(ls /bin)   /usr/bin: $(ls /usr/bin)" echo "\$ FM_HOME=~/fm-home ~/firstmate-code/bin/fm-remote-doctor.sh --fix | grep remote-job-" FM_HOME=~/fm-home "$ROOT/bin/fm-remote-doctor.sh" --fix 2>&1 | grep -E "remote-job-(worker|probe)=" echo "\$ pgrep -fa fm-remote-job-worker   (the account live-root worker, before)"; pgrep -fa fm-remote-job-worker cd "$ROOT" echo "\$ bash tests/fm-remote-job-orphan-reap.test.sh" bash tests/fm-remote-job-orphan-reap.test.sh; echo "[exit=$?]" echo "\$ pgrep -fa fm-remote-job-worker   (the account live-root worker, after the reaper sweeps)"; pgrep -fa fm-remote-job-worker echo "\$ bin/fm-remote-job-reap-orphans.sh --dry-run"; bin/fm-remote-job-reap-orphans.sh --dry-run; echo "[exit=$?]" 
+106 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh
+162 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+256 bash /home/developer/firstmate-code/bin/fm-remote-job-worker.sh --serve
+$ bin/fm-remote-job-reap-orphans.sh --dry-run
+[exit=0]
